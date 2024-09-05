@@ -10,8 +10,8 @@ import uuid
 
 llm = LLM_MODEL()     
 app = FastAPI()
-
 templates = Jinja2Templates(directory="templates")
+room_dict = {}
 
 @app.get("/", response_class=HTMLResponse)
 async def read_item(request: Request):
@@ -20,7 +20,6 @@ async def read_item(request: Request):
         request=request, name="LLM.html", context={"id": id}
     )
 
-room_dict = {}
 
 @app.websocket('/ws/{room_id}')
 async def websocket_endpoint(websocket:WebSocket, room_id: str):
