@@ -20,8 +20,8 @@ class DB_CONN:
         if cls._instance is None:
             cls._intance = super().__new__(cls) 
             cls.pool = SimpleConnectionPool(
-                minconn=1,
-                maxconn=10,
+                minconn = 1,
+                maxconn = 10,
                 **cls.db_arg
             )
         return cls._instance
