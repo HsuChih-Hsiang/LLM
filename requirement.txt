@@ -6,3 +6,4 @@ wheel
 setuptools
 sentencepiece
 protobuf
+psycopg2
