@@ -1,9 +1,8 @@
-import psycopg2
+from typing import Dict, Type, List, Any
 from psycopg2.extensions import connection
 from psycopg2.pool import SimpleConnectionPool
 from sentence_transformers import SentenceTransformer
 import PyPDF2
-from typing import Dict, Type
 
 class DB_CONN:
     _instance: Type["DB_CONN"] = None
@@ -17,7 +16,7 @@ class DB_CONN:
         "port": "5432"
     }
 
-    def __new__(cls):
+    def __new__(cls) -> Type["DB_CONN"]:
         if cls._instance is None:
             cls._intance = super().__new__(cls) 
             cls.pool = SimpleConnectionPool(
@@ -27,7 +26,7 @@ class DB_CONN:
             )
         return cls._instance
     
-    def __init__(self):
+    def __init__(self) -> None:
         pass
     
     @classmethod
@@ -35,7 +34,7 @@ class DB_CONN:
         return self.pool.getconn()
     
     @classmethod
-    def putconn(self, conn: connection):
+    def putconn(self, conn: connection) -> None:
         self.pool.putconn(conn)
     
 class RAG:
@@ -44,13 +43,13 @@ class RAG:
         self.db = DB_CONN()
     
     @staticmethod
-    def encoding_text(text: str):
+    def encoding_text(text: str) -> List | Any:
         model = SentenceTransformer('all-MiniLM-L6-v2')
         embedding = model.encode(text).tolist()
         return embedding
 
     @classmethod
-    def store_pdf(cls, pdf: bytes):
+    def store_pdf(cls, pdf: bytes) -> None:
         with open(pdf, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             text = ""
@@ -63,18 +62,18 @@ class RAG:
 
         try:
             with conn.cursor() as cur:
-                cur.execute("INSERT INTO documents (text, embedding, pdf_path) VALUES (%s, %s, %s)", (text, embedding, pdf))
+                cur.execute("INSERT INTO documents (file_name, embedding) VALUES (%s, %s)", (text, embedding))
                 cls.conn.commit()
         finally:
             cls.db.putconn(conn)
 
     @classmethod
-    def retrieve_pdfs(cls, query: str):
+    def retrieve_pdfs(cls, query: str) -> List:
         query_embedding = cls.encoding_text(query)
         conn = cls.db.get_conn()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT pdf_path FROM documents ORDER BY embedding <-> %s LIMIT 5", (query_embedding,))
+                cur.execute("SELECT pdf_path FROM documents ORDER BY embedding <-> %s LIMIT 5", (query_embedding))
                 results = cur.fetchall()
         finally:
             cls.db.putconn(conn)
