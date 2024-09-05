@@ -1,12 +1,14 @@
 import psycopg2
+from psycopg2.extensions import connection
 from sentence_transformers import SentenceTransformer
 import PyPDF2
+from typing import Dict
 
 class DB_CONN():
     _instance = None
     conn = None
 
-    db_arg = {
+    db_arg: Dict[str, str] = {
         "database": "NTU_LLM",
         "user": "",
         "password": "",
@@ -34,9 +36,19 @@ class DB_CONN():
         return conn
     
 class RAG():
+    
+    def __init__(self) -> None:
+        self.conn = DB_CONN().conn
+    
+    @staticmethod
+    def encoding_text(text: str):
+        # 向量化
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        embedding = model.encode(text).tolist()
+        return embedding
 
     @classmethod
-    def store_pdf(pdf: bytes, conn: any):
+    def store_pdf(cls, pdf: bytes):
         # 提取 PDF 文本
         with open(pdf, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
@@ -45,23 +57,19 @@ class RAG():
                 page = reader.pages[page_num]
                 text += page.extract_text()
 
-        # 向量化
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-        embedding = model.encode(text).tolist()
+        embedding = cls.encoding_text(text)
 
-        cur = conn.cursor()
+        cur = cls.conn.cursor()
         cur.execute("INSERT INTO documents (text, embedding, pdf_path) VALUES (%s, %s, %s)", (text, embedding, pdf))
-        conn.commit()
+        cls.conn.commit()
         cur.close()
 
     # 搜尋相關 PDF
     @classmethod
-    def retrieve_pdfs(query):
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-        query_embedding = model.encode(query).tolist()
-        conn = DB_CONN().conn
-        cur = conn.cursor()
+    def retrieve_pdfs(cls, query: str):
+        query_embedding = cls.encoding_text(query)
+        cur = cls.conn.cursor()
         cur.execute("SELECT pdf_path FROM documents ORDER BY embedding <-> %s LIMIT 5", (query_embedding,))
         results = cur.fetchall()
-        conn.close()
+        cur.close()
         return [result[0] for result in results]
