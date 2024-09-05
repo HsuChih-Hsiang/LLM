@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>聊天1</title>
+</head>
+<body>
+<h1>LLM</h1>
+
+<form action="" onsubmit="sendMessage(event)">
+    <input type="text" id="messageText" autocomplete="off"/>
+    <button>Send</button>
+</form>
+
+
+<h3 id='question'></h3>
+<div class="chat-container">
+    <div id='chat-message'>
+    </div>
+</div>
+<style>
+    .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 20vh; /* 佔用視窗高度的 80% */
+    border: 1px solid #ccc;
+    padding: 10px;
+    overflow-y: scroll;
+}
+
+.message {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.user-message {
+    background-color: #e0f2fe;
+    text-align: right;
+}
+
+.bot-message {
+    background-color: #f0f0f0;
+    text-align: left;
+}
+  </style>
+
+<script>
+    let ws = new WebSocket("ws://140.112.3.52:8000/ws/{{id}}");
+    let messages = document.getElementById('messages')
+    let message = document.getElementById('chat-message')
+    let question = document.getElementById('question')
+    
+    ws.onmessage = function(event) {
+        let content = document.createTextNode(event.data)
+        message.appendChild(content)
+        const chatContainer = document.querySelector('.chat-container');
+    };
+
+    function sendMessage(event) {
+        question.innerHTML = ''
+        message.innerHTML = ''
+        let input = document.getElementById("messageText")
+        let content = document.createTextNode(input.value)
+        question.appendChild(content)
+        ws.send(input.value)
+        input.value = ''
+        event.preventDefault()
+    }
+</script>
+
+</body>
+
+</html>
