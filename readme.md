@@ -1,4 +1,3 @@
-'''
 下載顯卡驅動
 https://www.nvidia.com/zh-tw/drivers/
 => 顯卡驅動需版本需 >= 527.41
@@ -47,4 +46,3 @@ pip install flash_attn-2.6.3+cu123torch2.2.2cxx11abiFALSE-cp311-cp311-win_amd64.
 
 5. 啟動 server
 uvicorn server:app --host 140.112.3.52 --reload
-'''
