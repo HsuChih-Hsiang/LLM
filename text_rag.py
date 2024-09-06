@@ -3,18 +3,15 @@ from psycopg2.extensions import connection
 from psycopg2.pool import SimpleConnectionPool
 from sentence_transformers import SentenceTransformer
 import PyPDF2
+import yaml
+
 
 class DB_CONN:
     _instance: Type["DB_CONN"] = None
+    _is_init: bool = None
     pool: SimpleConnectionPool = None
 
-    db_arg: Dict[str, str] = {
-        "database": "NTU_LLM",
-        "user": "",
-        "password": "",
-        "host": "127.0.0.1",
-        "port": "5432"
-    }
+    db_arg: Dict[str, str] = yaml.safe_load("init_config.yml")["database"]
 
     def __new__(cls) -> Type["DB_CONN"]:
         if cls._instance is None:
@@ -26,8 +23,29 @@ class DB_CONN:
             )
         return cls._instance
     
-    def __init__(self) -> None:
-        pass
+    def __init__(self):
+        if not self._is_init:
+            self.init_db()
+        
+    @property
+    def init_db(self):
+        conn = self.getconn()
+        try:
+            conn = self.getconn()
+            
+        except:
+            with conn.cursor() as cur:
+                cur.execute("")
+                table_exist = self.conn.fetchall()
+                
+            if not table_exist:
+                with conn.cursor() as cur:
+                    cur.execute("")
+                    table_exist = self.conn.commit()
+            
+        finally:
+            self.db.putconn(conn)
+            self._is_init = True
     
     @classmethod
     def getconn(self) -> connection:
@@ -40,7 +58,7 @@ class DB_CONN:
 class RAG:
     
     def __init__(self) -> None:
-        self.db = DB_CONN()
+        self.db: type["DB_CONN"] = DB_CONN()
     
     @staticmethod
     def encoding_text(text: str) -> List | Any:
