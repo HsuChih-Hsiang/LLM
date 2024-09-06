@@ -1,9 +1,14 @@
+from enum import Enum
 from typing import Dict, Type, List, Any
 from psycopg2.extensions import connection
 from psycopg2.pool import SimpleConnectionPool
 from sentence_transformers import SentenceTransformer
 import PyPDF2
 import yaml
+
+class DB_create(Enum):
+    extand = "SELECT * FROM pg_extension where extname = "
+    documents = ""
 
 
 class DB_CONN:
@@ -31,9 +36,6 @@ class DB_CONN:
     def init_db(self):
         conn = self.getconn()
         try:
-            conn = self.getconn()
-            
-        except:
             with conn.cursor() as cur:
                 cur.execute("")
                 table_exist = self.conn.fetchall()
@@ -43,6 +45,9 @@ class DB_CONN:
                     cur.execute("")
                     table_exist = self.conn.commit()
             
+        except:
+            pass
+        
         finally:
             self.db.putconn(conn)
             self._is_init = True
