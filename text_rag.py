@@ -9,22 +9,15 @@ import PyPDF2
 
 
 class DB_extension(Enum):
-    extand = "SELECT * FROM pg_extension where extname = "
-    
-    def __str__(self):
-        pass
+    PGVECTOR = "pgvector"
 
 class DB_table(Enum):
-    documents = ""
-    
-    
-class DB_create:
+    DOCUMENTS = "documents"
+       
+class DB_UTILITY:
     def __init__(self, db_connection):
         self.db = db_connection
-        if self.extend_check() and self.table_check():
-            self.add_extension()
-            self.create_table()
-
+        
     def db_conn_template(self, func):
         def wrapper(*args, **kwargs):
             conn = self.db.getconn()
@@ -32,50 +25,18 @@ class DB_create:
                 return func(self, conn, *args, **kwargs)
             finally:
                 self.db.putconn(conn)
-        return wrapper
-
-    @db_conn_template
-    def extend_check(self, conn: connection) -> Dict:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM pg_extension")
-            extend_exist = cur.fetchall()
-        return extend_exist
-
-    @db_conn_template
-    def table_check(self, conn: connection) -> Dict:
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM information_schema.tables")
-            table_exist = cur.fetchall()
-        return table_exist
-
-    @db_conn_template
-    def create_table(self, conn: connection) -> None:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS your_table_name (
-                    id SERIAL PRIMARY KEY,
-                    column1 TEXT,
-                    column2 INTEGER
-                )
-            """)
-            conn.commit()
-
-    @db_conn_template
-    def add_extension(self, conn: connection) -> None:
-        with conn.cursor() as cur:
-            cur.execute("CREATE EXTENSION IF NOT EXISTS pgvector")
-            conn.commit()
+        return wrapper  
 
 class DB_CONN:
     _instance: Type["DB_CONN"] = None
     pool: SimpleConnectionPool = None
 
-    def __new__(cls, db_arg: Dict[str, str]) -> Type["DB_CONN"]:
+    def __new__(cls, db_arg: Dict[str, str], minconn: int = 1, maxconn: int = 10) -> Type["DB_CONN"]:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls.pool = SimpleConnectionPool(
-                minconn=1,
-                maxconn=10,
+                minconn=minconn,
+                maxconn=maxconn,
                 **db_arg
             )
         return cls._instance
@@ -88,32 +49,57 @@ class DB_CONN:
     def putconn(cls, conn: connection) -> None:
         cls.pool.putconn(conn)
 
-class Container(containers.DeclarativeContainer):
-    config = providers.Configuration(yaml_files=["init_config.yml"])
+class DB_create(DB_UTILITY):
+    def __init__(self, db_connection: DB_CONN):
+        super().__init__(db_connection)
+        if self.extend_check() and self.table_check():
+            self.add_extension()
+            self.create_table()
 
-    db_conn = providers.Singleton(
-        DB_CONN,
-        db_arg=config.database
-    )
+    @DB_UTILITY.db_conn_template
+    def extend_check(self, conn: connection) -> Dict:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM pg_extension")
+            extend_exist = cur.fetchall()
+        return extend_exist
 
-    db_create = providers.Factory(
-        DB_create,
-        db_connection=db_conn
-    )
+    @DB_UTILITY.db_conn_template
+    def table_check(self, conn: connection) -> Dict:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM information_schema.tables")
+            table_exist = cur.fetchall()
+        return table_exist
+
+    @DB_UTILITY.db_conn_template
+    def create_table(self, conn: connection) -> None:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS your_table_name (
+                    id SERIAL PRIMARY KEY,
+                    column1 TEXT,
+                    column2 INTEGER
+                )
+            """)
+            conn.commit()
+
+    @DB_UTILITY.db_conn_template
+    def add_extension(self, conn: connection) -> None:
+        with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS pgvector")
+            conn.commit()
     
-class RAG:
-    
-    def __init__(self) -> None:
-        self.db: type["DB_CONN"] = DB_CONN()
+class RAG(DB_UTILITY):
+    def __init__(self, db_connection: DB_CONN) -> None:
+        super().__init__(db_connection)
     
     @staticmethod
-    def encoding_text(text: str) -> List | Any:
+    def encoding_text(text: str) -> List[float]:
         model = SentenceTransformer('all-MiniLM-L6-v2')
         embedding = model.encode(text).tolist()
         return embedding
 
     @classmethod
-    @DB_create.db_conn_template
+    @DB_UTILITY.db_conn_template
     def store_pdf(cls, conn: connection, pdf: bytes) -> None:
         with open(pdf, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
@@ -123,7 +109,6 @@ class RAG:
                 text += page.extract_text()
 
         embedding = cls.encoding_text(text)
-        conn = cls.db.get_conn()
         
         with conn.cursor() as cur:
             cur.execute("INSERT INTO documents (file_name, embedding) VALUES (%s, %s)", (text, embedding))
@@ -131,8 +116,8 @@ class RAG:
        
 
     @classmethod
-    @DB_create.db_conn_template
-    def retrieve_pdfs(cls, conn: connection, query: str) -> List:
+    @DB_UTILITY.db_conn_template
+    def retrieve_pdfs(cls, conn: connection, query: str) -> List[str]:
         query_embedding = cls.encoding_text(query)
         
         with conn.cursor() as cur:
@@ -140,3 +125,24 @@ class RAG:
             results = cur.fetchall()
 
         return [result[0] for result in results]
+    
+    
+class Container(containers.DeclarativeContainer):
+    config = providers.Configuration(yaml_files=["init_config.yml"])
+
+    db_conn = providers.Singleton(
+        DB_CONN,
+        db_arg=config.database,
+        minconn=1,
+        maxconn=10
+    )
+
+    db_create = providers.Factory(
+        DB_create,
+        db_connection=db_conn
+    )
+    
+    rag = providers.Factory(
+        RAG,
+        db_connection=db_conn
+    )
