@@ -5,7 +5,6 @@ from psycopg2.extensions import connection
 from psycopg2.pool import SimpleConnectionPool
 from sentence_transformers import SentenceTransformer
 import PyPDF2
-import yaml
 
 
 
@@ -114,7 +113,8 @@ class RAG:
         return embedding
 
     @classmethod
-    def store_pdf(cls, pdf: bytes) -> None:
+    @DB_create.db_conn_template
+    def store_pdf(cls, conn: connection, pdf: bytes) -> None:
         with open(pdf, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             text = ""
@@ -124,23 +124,19 @@ class RAG:
 
         embedding = cls.encoding_text(text)
         conn = cls.db.get_conn()
-
-        try:
-            with conn.cursor() as cur:
-                cur.execute("INSERT INTO documents (file_name, embedding) VALUES (%s, %s)", (text, embedding))
-                cls.conn.commit()
-        finally:
-            cls.db.putconn(conn)
+        
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO documents (file_name, embedding) VALUES (%s, %s)", (text, embedding))
+            cls.conn.commit()
+       
 
     @classmethod
-    def retrieve_pdfs(cls, query: str) -> List:
+    @DB_create.db_conn_template
+    def retrieve_pdfs(cls, conn: connection, query: str) -> List:
         query_embedding = cls.encoding_text(query)
-        conn = cls.db.get_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT pdf_path FROM documents ORDER BY embedding <-> %s LIMIT 5", (query_embedding))
-                results = cur.fetchall()
-        finally:
-            cls.db.putconn(conn)
+        
+        with conn.cursor() as cur:
+            cur.execute("SELECT pdf_path FROM documents ORDER BY embedding <-> %s LIMIT 5", (query_embedding))
+            results = cur.fetchall()
 
         return [result[0] for result in results]
