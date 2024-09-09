@@ -1,64 +1,105 @@
 from enum import Enum
 from typing import Dict, Type, List, Any
+from dependency_injector import containers, providers
 from psycopg2.extensions import connection
 from psycopg2.pool import SimpleConnectionPool
 from sentence_transformers import SentenceTransformer
 import PyPDF2
-import yaml
 
-class DB_create(Enum):
+
+
+class DB_extension(Enum):
     extand = "SELECT * FROM pg_extension where extname = "
-    documents = ""
+    
+    def __str__(self):
+        pass
 
+class DB_table(Enum):
+    documents = ""
+    
+    
+class DB_create:
+    def __init__(self, db_connection):
+        self.db = db_connection
+        if self.extend_check() and self.table_check():
+            self.add_extension()
+            self.create_table()
+
+    def db_conn_template(self, func):
+        def wrapper(*args, **kwargs):
+            conn = self.db.getconn()
+            try:
+                return func(self, conn, *args, **kwargs)
+            finally:
+                self.db.putconn(conn)
+        return wrapper
+
+    @db_conn_template
+    def extend_check(self, conn: connection) -> Dict:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM pg_extension")
+            extend_exist = cur.fetchall()
+        return extend_exist
+
+    @db_conn_template
+    def table_check(self, conn: connection) -> Dict:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM information_schema.tables")
+            table_exist = cur.fetchall()
+        return table_exist
+
+    @db_conn_template
+    def create_table(self, conn: connection) -> None:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS your_table_name (
+                    id SERIAL PRIMARY KEY,
+                    column1 TEXT,
+                    column2 INTEGER
+                )
+            """)
+            conn.commit()
+
+    @db_conn_template
+    def add_extension(self, conn: connection) -> None:
+        with conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS pgvector")
+            conn.commit()
 
 class DB_CONN:
     _instance: Type["DB_CONN"] = None
-    _is_init: bool = None
     pool: SimpleConnectionPool = None
 
-    db_arg: Dict[str, str] = yaml.safe_load("init_config.yml")["database"]
-
-    def __new__(cls) -> Type["DB_CONN"]:
+    def __new__(cls, db_arg: Dict[str, str]) -> Type["DB_CONN"]:
         if cls._instance is None:
-            cls._intance = super().__new__(cls) 
+            cls._instance = super().__new__(cls)
             cls.pool = SimpleConnectionPool(
-                minconn = 1,
-                maxconn = 10,
-                **cls.db_arg
+                minconn=1,
+                maxconn=10,
+                **db_arg
             )
         return cls._instance
-    
-    def __init__(self):
-        if not self._is_init:
-            self.init_db()
-        
-    @property
-    def init_db(self):
-        conn = self.getconn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("")
-                table_exist = self.conn.fetchall()
-                
-            if not table_exist:
-                with conn.cursor() as cur:
-                    cur.execute("")
-                    table_exist = self.conn.commit()
-            
-        except:
-            pass
-        
-        finally:
-            self.db.putconn(conn)
-            self._is_init = True
-    
+
     @classmethod
-    def getconn(self) -> connection:
-        return self.pool.getconn()
-    
+    def getconn(cls) -> connection:
+        return cls.pool.getconn()
+
     @classmethod
-    def putconn(self, conn: connection) -> None:
-        self.pool.putconn(conn)
+    def putconn(cls, conn: connection) -> None:
+        cls.pool.putconn(conn)
+
+class Container(containers.DeclarativeContainer):
+    config = providers.Configuration(yaml_files=["init_config.yml"])
+
+    db_conn = providers.Singleton(
+        DB_CONN,
+        db_arg=config.database
+    )
+
+    db_create = providers.Factory(
+        DB_create,
+        db_connection=db_conn
+    )
     
 class RAG:
     
@@ -72,7 +113,8 @@ class RAG:
         return embedding
 
     @classmethod
-    def store_pdf(cls, pdf: bytes) -> None:
+    @DB_create.db_conn_template
+    def store_pdf(cls, conn: connection, pdf: bytes) -> None:
         with open(pdf, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             text = ""
@@ -82,23 +124,19 @@ class RAG:
 
         embedding = cls.encoding_text(text)
         conn = cls.db.get_conn()
-
-        try:
-            with conn.cursor() as cur:
-                cur.execute("INSERT INTO documents (file_name, embedding) VALUES (%s, %s)", (text, embedding))
-                cls.conn.commit()
-        finally:
-            cls.db.putconn(conn)
+        
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO documents (file_name, embedding) VALUES (%s, %s)", (text, embedding))
+            cls.conn.commit()
+       
 
     @classmethod
-    def retrieve_pdfs(cls, query: str) -> List:
+    @DB_create.db_conn_template
+    def retrieve_pdfs(cls, conn: connection, query: str) -> List:
         query_embedding = cls.encoding_text(query)
-        conn = cls.db.get_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT pdf_path FROM documents ORDER BY embedding <-> %s LIMIT 5", (query_embedding))
-                results = cur.fetchall()
-        finally:
-            cls.db.putconn(conn)
+        
+        with conn.cursor() as cur:
+            cur.execute("SELECT pdf_path FROM documents ORDER BY embedding <-> %s LIMIT 5", (query_embedding))
+            results = cur.fetchall()
 
         return [result[0] for result in results]
