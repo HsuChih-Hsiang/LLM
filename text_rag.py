@@ -25,11 +25,32 @@ class DB_UTILITY:
                 return func(self, conn, *args, **kwargs)
             finally:
                 self.db.putconn(conn)
-        return wrapper
-    
-    
+        return wrapper  
+
+class DB_CONN:
+    _instance: Type["DB_CONN"] = None
+    pool: SimpleConnectionPool = None
+
+    def __new__(cls, db_arg: Dict[str, str], minconn: int = 1, maxconn: int = 10) -> Type["DB_CONN"]:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls.pool = SimpleConnectionPool(
+                minconn=minconn,
+                maxconn=maxconn,
+                **db_arg
+            )
+        return cls._instance
+
+    @classmethod
+    def getconn(cls) -> connection:
+        return cls.pool.getconn()
+
+    @classmethod
+    def putconn(cls, conn: connection) -> None:
+        cls.pool.putconn(conn)
+
 class DB_create(DB_UTILITY):
-    def __init__(self, db_connection):
+    def __init__(self, db_connection: DB_CONN):
         super().__init__(db_connection)
         if self.extend_check() and self.table_check():
             self.add_extension()
@@ -66,51 +87,13 @@ class DB_create(DB_UTILITY):
         with conn.cursor() as cur:
             cur.execute("CREATE EXTENSION IF NOT EXISTS pgvector")
             conn.commit()
-
-class DB_CONN:
-    _instance: Type["DB_CONN"] = None
-    pool: SimpleConnectionPool = None
-
-    def __new__(cls, db_arg: Dict[str, str], minconn: int = 1, maxconn: int = 10) -> Type["DB_CONN"]:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls.pool = SimpleConnectionPool(
-                minconn=minconn,
-                maxconn=maxconn,
-                **db_arg
-            )
-        return cls._instance
-
-    @classmethod
-    def getconn(cls) -> connection:
-        return cls.pool.getconn()
-
-    @classmethod
-    def putconn(cls, conn: connection) -> None:
-        cls.pool.putconn(conn)
-
-class Container(containers.DeclarativeContainer):
-    config = providers.Configuration(yaml_files=["init_config.yml"])
-
-    db_conn = providers.Singleton(
-        DB_CONN,
-        db_arg=config.database,
-        minconn=1,
-        maxconn=10
-    )
-
-    db_create = providers.Factory(
-        DB_create,
-        db_connection=db_conn
-    )
     
 class RAG:
-    
-    def __init__(self) -> None:
-        self.db: type["DB_CONN"] = DB_CONN()
+    def __init__(self, db_connection: DB_CONN) -> None:
+        self.db =  db_connection
     
     @staticmethod
-    def encoding_text(text: str) -> List | Any:
+    def encoding_text(text: str) -> List[float]:
         model = SentenceTransformer('all-MiniLM-L6-v2')
         embedding = model.encode(text).tolist()
         return embedding
@@ -134,7 +117,7 @@ class RAG:
 
     @classmethod
     @DB_UTILITY.db_conn_template
-    def retrieve_pdfs(cls, conn: connection, query: str) -> List:
+    def retrieve_pdfs(cls, conn: connection, query: str) -> List[str]:
         query_embedding = cls.encoding_text(query)
         
         with conn.cursor() as cur:
@@ -142,3 +125,24 @@ class RAG:
             results = cur.fetchall()
 
         return [result[0] for result in results]
+    
+    
+class Container(containers.DeclarativeContainer):
+    config = providers.Configuration(yaml_files=["init_config.yml"])
+
+    db_conn = providers.Singleton(
+        DB_CONN,
+        db_arg=config.database,
+        minconn=1,
+        maxconn=10
+    )
+
+    db_create = providers.Factory(
+        DB_create,
+        db_connection=db_conn
+    )
+    
+    rag = providers.Factory(
+        RAG,
+        db_connection=db_conn
+    )
