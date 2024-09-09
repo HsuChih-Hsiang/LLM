@@ -8,10 +8,10 @@ import PyPDF2
 
 
 
-class DB_extension(Enum):
+class DB_EXTENSION(Enum):
     PGVECTOR = "pgvector"
 
-class DB_table(Enum):
+class DB_TABLE(Enum):
     DOCUMENTS = "documents"
        
 class DB_UTILITY:
@@ -49,7 +49,7 @@ class DB_CONN:
     def putconn(cls, conn: connection) -> None:
         cls.pool.putconn(conn)
 
-class DB_create(DB_UTILITY):
+class DB_CREATE(DB_UTILITY):
     def __init__(self, db_connection: DB_CONN):
         super().__init__(db_connection)
         if self.extend_check() and self.table_check():
@@ -138,7 +138,7 @@ class Container(containers.DeclarativeContainer):
     )
 
     db_create = providers.Factory(
-        DB_create,
+        DB_CREATE,
         db_connection=db_conn
     )
     
