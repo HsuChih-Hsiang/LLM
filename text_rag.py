@@ -88,9 +88,9 @@ class DB_create(DB_UTILITY):
             cur.execute("CREATE EXTENSION IF NOT EXISTS pgvector")
             conn.commit()
     
-class RAG:
+class RAG(DB_UTILITY):
     def __init__(self, db_connection: DB_CONN) -> None:
-        self.db =  db_connection
+        super().__init__(db_connection)
     
     @staticmethod
     def encoding_text(text: str) -> List[float]:
