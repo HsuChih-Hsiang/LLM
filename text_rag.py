@@ -19,15 +19,14 @@ class DB_table(Enum):
     documents = ""
     
     
-class DB_create():
+class DB_create:
     def __init__(self, db_connection):
         self.db = db_connection
-        _is_init: bool = None
-        if not _is_init and self.extend_check() and self.table_check():
+        if self.extend_check() and self.table_check():
             self.add_extension()
             self.create_table()
 
-    def db_conn_templete(self, func):
+    def db_conn_template(self, func):
         def wrapper(*args, **kwargs):
             conn = self.db.getconn()
             try:
@@ -36,67 +35,71 @@ class DB_create():
                 self.db.putconn(conn)
         return wrapper
 
-    @db_conn_templete
+    @db_conn_template
     def extend_check(self, conn: connection) -> Dict:
         with conn.cursor() as cur:
-            cur.execute("", return_dict=True)
-            extend_exist = self.conn.fetchall()
+            cur.execute("SELECT * FROM pg_extension")
+            extend_exist = cur.fetchall()
         return extend_exist
 
-    @db_conn_templete
+    @db_conn_template
     def table_check(self, conn: connection) -> Dict:
         with conn.cursor() as cur:
-            cur.execute("", return_dict=True)
-            table_exist = self.conn.fetchall()
+            cur.execute("SELECT * FROM information_schema.tables")
+            table_exist = cur.fetchall()
         return table_exist
 
-    @db_conn_templete
-    def create_table(self, conn: connection, table: Dict) -> None:
+    @db_conn_template
+    def create_table(self, conn: connection) -> None:
         with conn.cursor() as cur:
-            cur.execute("", return_dict=True)
-            self.conn.commit()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS your_table_name (
+                    id SERIAL PRIMARY KEY,
+                    column1 TEXT,
+                    column2 INTEGER
+                )
+            """)
+            conn.commit()
 
-    @db_conn_templete
-    def add_extension(self, conn: connection, extension: Dict) -> None:
+    @db_conn_template
+    def add_extension(self, conn: connection) -> None:
         with conn.cursor() as cur:
-            cur.execute("", return_dict=True)
-            self.conn.commit()
-            
+            cur.execute("CREATE EXTENSION IF NOT EXISTS pgvector")
+            conn.commit()
 
 class DB_CONN:
     _instance: Type["DB_CONN"] = None
     pool: SimpleConnectionPool = None
 
-    db_arg: Dict[str, str] = yaml.safe_load("init_config.yml")["database"]
-
-    def __new__(cls) -> Type["DB_CONN"]:
+    def __new__(cls, db_arg: Dict[str, str]) -> Type["DB_CONN"]:
         if cls._instance is None:
-            cls._intance = super().__new__(cls) 
+            cls._instance = super().__new__(cls)
             cls.pool = SimpleConnectionPool(
-                minconn = 1,
-                maxconn = 10,
-                **cls.db_arg
+                minconn=1,
+                maxconn=10,
+                **db_arg
             )
         return cls._instance
-    
+
     @classmethod
-    def getconn(self) -> connection:
-        return self.pool.getconn()
-    
+    def getconn(cls) -> connection:
+        return cls.pool.getconn()
+
     @classmethod
-    def putconn(self, conn: connection) -> None:
-        self.pool.putconn(conn)
-        
+    def putconn(cls, conn: connection) -> None:
+        cls.pool.putconn(conn)
+
 class Container(containers.DeclarativeContainer):
-    config = providers.Configuration()
+    config = providers.Configuration(yaml_files=["init_config.yml"])
 
     db_conn = providers.Singleton(
-        DB_CONN
+        DB_CONN,
+        db_arg=config.database
     )
 
     db_create = providers.Factory(
         DB_create,
-        db=db_conn
+        db_connection=db_conn
     )
     
 class RAG:
