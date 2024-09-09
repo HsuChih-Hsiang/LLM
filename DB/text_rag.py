@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Dict, Type, List, Any
 from dependency_injector import containers, providers
 from psycopg2.extensions import connection
@@ -6,14 +5,6 @@ from psycopg2.pool import SimpleConnectionPool
 from sentence_transformers import SentenceTransformer
 import PyPDF2
 
-
-
-class DB_EXTENSION(Enum):
-    PGVECTOR = "pgvector"
-
-class DB_TABLE(Enum):
-    DOCUMENTS = "documents"
-       
 class DB_UTILITY:
     def __init__(self, db_connection):
         self.db = db_connection
@@ -126,23 +117,3 @@ class RAG(DB_UTILITY):
 
         return [result[0] for result in results]
     
-    
-class Container(containers.DeclarativeContainer):
-    config = providers.Configuration(yaml_files=["init_config.yml"])
-
-    db_conn = providers.Singleton(
-        DB_CONN,
-        db_arg=config.database,
-        minconn=1,
-        maxconn=10
-    )
-
-    db_create = providers.Factory(
-        DB_CREATE,
-        db_connection=db_conn
-    )
-    
-    rag = providers.Factory(
-        RAG,
-        db_connection=db_conn
-    )
