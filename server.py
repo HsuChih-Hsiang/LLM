@@ -30,7 +30,6 @@ async def read_item(request: Request):
         request=request, name="LLM.html", context={"id": id}
     )
 
-
 @app.websocket('/ws/{room_id}')
 async def websocket_endpoint(websocket:WebSocket, room_id: str):
     try:

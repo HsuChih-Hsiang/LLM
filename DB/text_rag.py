@@ -1,12 +1,13 @@
-from typing import Dict, Type, List, Callable, Any, Union
+import torch
+import PyPDF2
+from enum import Enum
 import psycopg2.extras
 from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
+from typing import Dict, Type, List, Callable, Any, Union
 from sentence_transformers import SentenceTransformer
-import PyPDF2
-from DB_Enum import RAG_COMMAND, DB_EXTENSION
-from enum import Enum
-from DB.DB_Enum import DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND
+from DB_Enum import RAG_COMMAND, DB_EXTENSION, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND
+
 
 class ReturnType(Enum):
     Dict = 1
@@ -105,20 +106,38 @@ class DataBaseCreate(DataBaseUtility):
 class RAG(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection) -> None:
         super().__init__(db_connection)
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.model = SentenceTransformer('allenai/longformer-base-4096')
+        self.max_seq_length = 4096
+        self.embedding_dim = 768
     
     def encoding_text(self, text: str) -> List[float]:
         return self.model.encode(text).tolist()
 
+    def encoding_text(self, text: str) -> List[float]:
+        if len(text.split()) <= self.max_seq_length:
+            return self.model.encode(text).tolist()
+        else:
+            chunks = self.split_text(text)
+            embeddings = [self.model.encode(chunk) for chunk in chunks]
+            return torch.mean(torch.stack(embeddings), dim=0).tolist()
+
+    def split_text(self, text: str, overlap: int = 50) -> List[str]:
+        words = text.split()
+        chunks = []
+        for i in range(0, len(words), self.max_seq_length - overlap):
+            chunk = ' '.join(words[i:i + self.max_seq_length])
+            chunks.append(chunk)
+        return chunks
+
     @DataBaseUtility.db_commit
     @DataBaseUtility.db_conn_template
-    def store_pdf(self, cur: cursor, pdf: bytes) -> None:       
-        with open(pdf, 'rb') as pdf_file:
+    def store_pdf(self, cur: cursor, pdf_path: str) -> None:       
+        with open(pdf_path, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             text = "".join(page.extract_text() for page in reader.pages)
 
-        embedding = self.encoding_text(text)
-        cur.execute(RAG_COMMAND.ADD_DOCIMENTS, (text, embedding))
+        embedding = self.encoding_text(text)  # 使用改進後的 encoding_text 方法
+        cur.execute(RAG_COMMAND.ADD_DOCUMENTS, (pdf_path, text, embedding))
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.Raw)
     @DataBaseUtility.db_conn_template

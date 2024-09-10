@@ -10,8 +10,7 @@ class CREATE_TABLE_COMMAND(Enum):
     DOCUMENTS = """"CREATE TABLE IF NOT EXISTS documents (
             id SERIAL PRIMARY KEY,
             file_name TEXT NOT NULL,
-            content TEXT,
-            embedding vector(384)
+            embedding vector(768)
         )
     """
 
