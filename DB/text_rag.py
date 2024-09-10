@@ -19,6 +19,9 @@ class DataBaseUtility:
         self.db = db_connection
         
     def db_conn_template(self, func: Callable) -> Callable:
+        """_summary_
+            裝飾器: 取得 conn pool 的連線, 並在執行完後收回
+        """
         def wrapper(*args, **kwargs):
             conn = self.db.getconn()
             try:
@@ -28,6 +31,12 @@ class DataBaseUtility:
         return wrapper
     
     def db_get_data(self, return_type: ReturnType = ReturnType.Dict) -> Callable:
+        """_summary_
+            裝飾器: 執行 SQL , 並更改從資料庫取得的資料型態
+            Raw: 使用原本 function 的回傳
+            List: 資料庫回傳的資料型態
+            Dict: 方便 API 做後續操作
+        """
         def decorator(func: Callable) -> Callable:
             def wrapper(self, conn: connection, *args, **kwargs) -> Union[List[Dict[str, Any]], List[Any], Any]:
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
@@ -45,6 +54,9 @@ class DataBaseUtility:
         return decorator
     
     def db_commit(self, func: Callable) -> Callable:
+        """_summary_
+            裝飾器: 執行 SQL , 並將資料儲存到資料庫
+        """
         def wrapper(self, conn: connection, *args, **kwargs):
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
                 func(self, cursor, *args, **kwargs)
@@ -67,10 +79,16 @@ class DataBaseConnection:
 
     @classmethod
     def getconn(cls) -> connection:
+        """_summary_
+            從 SimpleConnectionPool 取得於資料庫的連線
+        """
         return cls.pool.getconn()
 
     @classmethod
     def putconn(cls, conn: connection) -> None:
+        """_summary_
+            將與資料庫的連線放回 SimpleConnectionPool
+        """
         cls.pool.putconn(conn)
 
 class DataBaseCreate(DataBaseUtility):
@@ -83,11 +101,17 @@ class DataBaseCreate(DataBaseUtility):
     @DataBaseUtility.db_get_data(return_type=ReturnType.List)
     @DataBaseUtility.db_conn_template
     def table_list(self, cur: cursor) -> None:
+        """_summary_
+            用於取得目前資料庫所有的 table list
+        """
         cur.execute(DB_TABLE_COMMAND)
         
     @DataBaseUtility.db_commit
     @DataBaseUtility.db_conn_template
     def create_table(self, cur: cursor, table_command: str) -> None:
+        """_summary_
+            依指令建立 table
+        """
         cur.execute(table_command)
         
     def create_init_table(self, table_list: List):

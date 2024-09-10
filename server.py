@@ -56,10 +56,17 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 async def add_documents():
     pass
 
-@app.get("/documents")               
-async def add_documents():
+@app.put("/documents")               
+async def update_documents():
     pass
 
+@app.get("/documents")               
+async def search_documents():
+    pass
+
+@app.get("/documents_list")               
+async def documents_list():
+    pass
 
 if __name__ == "__main__":
     uvicorn.run("server:app", host="140.112.3.52", port=8000, reload=True)
