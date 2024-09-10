@@ -9,10 +9,6 @@ import uvicorn
 import uuid
 
 
-
-templates = Jinja2Templates(directory="templates")
-room_dict = {}
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global llm
@@ -20,11 +16,8 @@ async def lifespan(app: FastAPI):
     yield
    
 app = FastAPI(lifespan=lifespan)
-
-
 templates = Jinja2Templates(directory="templates")
 room_dict = {}
-llm = None
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
