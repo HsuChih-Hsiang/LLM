@@ -13,7 +13,6 @@ class ReturnType(Enum):
     List = 2
     Raw = 3
 
-
 class DataBaseUtility:
     def __init__(self, db_connection):
         self.db = db_connection
