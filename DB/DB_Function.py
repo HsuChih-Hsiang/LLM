@@ -102,7 +102,6 @@ class DataBaseConnection:
 class DataBaseCreate(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection):
         super().__init__(db_connection)
-        self.add_extension()
         if check := self.table_check(): 
             self.create_table(check)
             
@@ -126,7 +125,7 @@ class DataBaseCreate(DataBaseUtility):
                 create_command = getattr(CREATE_TABLE_COMMAND, table.name, None)
                 if create_command:
                     self.create_table(create_command)
-        
+                    
     @DataBaseUtility.db_commit
     def add_extension(self, cur: cursor) -> None:
         cur.execute(DB_EXTENSION.PGVECTOR.value)
