@@ -1,12 +1,15 @@
+import os
 from dependency_injector import containers, providers
-from text_rag import DataBaseConnection, DataBaseCreate, RAG
+from DB.DB_Function import DataBaseConnection, DataBaseCreate, RAG
 
-class Container(containers.DeclarativeContainer):
-    config = providers.Configuration(yaml_files=["init_config.yml"])
+class DataBaseContainer(containers.DeclarativeContainer):
+    config_path =  os.path.abspath(os.path.join(os.path.dirname(__file__), "init_config.yml"))
+    config = providers.Configuration()
+    config.from_yaml(config_path, required=True)
 
     db_conn = providers.Singleton(
         DataBaseConnection,
-        db_arg=config.database,
+        db_arg=config.db_config,
         minconn=1,
         maxconn=10
     )

@@ -1,7 +1,7 @@
 from enum import Enum
 
 class DB_EXTENSION(Enum):
-    PGVECTOR = "CREATE EXTENSION IF NOT EXISTS pgvector"
+    PGVECTOR = "CREATE EXTENSION IF NOT EXISTS vector"
 
 class DB_TABLE(Enum):
     DOCUMENTS = "documents"
