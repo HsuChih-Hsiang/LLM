@@ -1,5 +1,5 @@
 from dependency_injector import containers, providers
-from text_rag import DataBaseConnection, DataBaseCreate, RAG
+from DB_Function import DataBaseConnection, DataBaseCreate, RAG
 
 class Container(containers.DeclarativeContainer):
     config = providers.Configuration(yaml_files=["init_config.yml"])

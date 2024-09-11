@@ -153,15 +153,18 @@ class RAG(DataBaseUtility):
             chunks.append(chunk)
         return chunks
 
-    @DataBaseUtility.db_commit
-    @DataBaseUtility.db_conn_template
-    def store_pdf(self, cur: cursor, pdf_path: str) -> None:       
+    def deal_pdf(self, pdf_path: str) -> None:       
         with open(pdf_path, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             text = "".join(page.extract_text() for page in reader.pages)
-
-        embedding = self.encoding_text(text)  # 使用改進後的 encoding_text 方法
-        cur.execute(RAG_COMMAND.ADD_DOCUMENTS, (pdf_path, text, embedding))
+        embedding = self.encoding_text(text)
+        return pdf_path, embedding
+        
+    @DataBaseUtility.db_commit
+    @DataBaseUtility.db_conn_template
+    def store_pdf(self, cur: cursor, pdf_path: str) -> None:
+        pdf_path, embedding = self.deal_pdf(pdf_path)
+        cur.execute(RAG_COMMAND.ADD_DOCUMENTS, (pdf_path, embedding))
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.Raw)
     @DataBaseUtility.db_conn_template
