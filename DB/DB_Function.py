@@ -102,15 +102,15 @@ class DataBaseConnection:
 class DataBaseCreate(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection):
         super().__init__(db_connection)
-        if check := self.table_check(): 
-            self.create_table(check)
+        existing_tables = self.table_list()
+        self.create_init_table(existing_tables)
             
     @DataBaseUtility.db_get_data(return_type=ReturnType.List)
     def table_list(self, cur: cursor) -> None:
         """_summary_
             用於取得目前資料庫所有的 table list
         """
-        cur.execute(DB_TABLE_COMMAND)
+        cur.execute(DB_TABLE_COMMAND.CHECK.value)
         
     @DataBaseUtility.db_commit
     def create_table(self, cur: cursor, table_command: str) -> None:
@@ -124,7 +124,7 @@ class DataBaseCreate(DataBaseUtility):
             if table.value not in table_list:
                 create_command = getattr(CREATE_TABLE_COMMAND, table.name, None)
                 if create_command:
-                    self.create_table(create_command)
+                    self.create_table(create_command.value)
                     
     @DataBaseUtility.db_commit
     def add_extension(self, cur: cursor) -> None:

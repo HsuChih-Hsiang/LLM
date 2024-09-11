@@ -7,7 +7,7 @@ class DB_TABLE(Enum):
     DOCUMENTS = "documents"
     
 class CREATE_TABLE_COMMAND(Enum):
-    DOCUMENTS = """"CREATE TABLE IF NOT EXISTS documents (
+    DOCUMENTS = """CREATE TABLE IF NOT EXISTS documents (
             id SERIAL PRIMARY KEY,
             file_name TEXT NOT NULL,
             embedding vector(768)
