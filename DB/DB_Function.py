@@ -125,11 +125,6 @@ class DataBaseCreate(DataBaseUtility):
                 create_command = getattr(CREATE_TABLE_COMMAND, table.name, None)
                 if create_command:
                     self.create_table(create_command.value)
-                    
-    @DataBaseUtility.db_commit
-    def add_extension(self, cur: cursor) -> None:
-        cur.execute(DB_EXTENSION.PGVECTOR.value)
-
     
 class RAG(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection) -> None:
@@ -167,12 +162,12 @@ class RAG(DataBaseUtility):
     @DataBaseUtility.db_commit
     def store_pdf(self, cur: cursor, pdf_path: str) -> None:
         pdf_path, embedding = self.deal_pdf(pdf_path)
-        cur.execute(RAG_COMMAND.ADD_DOCUMENTS, (pdf_path, embedding))
+        cur.execute(RAG_COMMAND.ADD_DOCIMENTS.value, (pdf_path, embedding))
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.Raw)
     def retrieve_pdfs(self, cur: cursor, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         query_embedding = self.encoding_text(query)
-        cur.execute(RAG_COMMAND.SEARCH_VECTOR, (query_embedding, limit))
+        cur.execute(RAG_COMMAND.SEARCH_VECTOR.value, (query_embedding, limit))
         results = cur.fetchall()
         return [result[0] for result in results]
     
