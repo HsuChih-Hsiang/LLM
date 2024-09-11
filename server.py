@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from contextlib import asynccontextmanager
+from DB.DB_Container import DataBaseContainer
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import Response
@@ -7,17 +8,21 @@ from llm_model import LLM_MODEL
 from chat_room import Room
 import uvicorn
 import uuid
+import os
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global llm
+    global llm, room_dict
     llm = LLM_MODEL()
+    database = DataBaseContainer()
+    database.db_conn()
+    database.db_create()
+    room_dict = {}
     yield
    
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
-room_dict = {}
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():

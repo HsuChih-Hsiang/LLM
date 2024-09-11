@@ -6,7 +6,7 @@ from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
 from sentence_transformers import SentenceTransformer
-from DB_Enum import RAG_COMMAND, DB_EXTENSION, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND
+from DB.DB_Enum import RAG_COMMAND, DB_EXTENSION, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND
 
 
 class ReturnType(Enum):
@@ -17,12 +17,13 @@ class ReturnType(Enum):
 class DataBaseUtility:
     def __init__(self, db_connection):
         self.db = db_connection
-        
-    def db_conn_template(self, func: Callable) -> Callable:
+    
+    @classmethod
+    def db_conn_template(cls, func: Callable) -> Callable:
         """_summary_
             裝飾器: 取得 conn pool 的連線, 並在執行完後收回
         """
-        def wrapper(*args, **kwargs):
+        def wrapper(self, *args, **kwargs):
             conn = self.db.getconn()
             try:
                 return func(self, conn, *args, **kwargs)
@@ -30,7 +31,8 @@ class DataBaseUtility:
                 self.db.putconn(conn)
         return wrapper
     
-    def db_get_data(self, return_type: ReturnType = ReturnType.Dict) -> Callable:
+    @classmethod
+    def db_get_data(cls, return_type: ReturnType = ReturnType.Dict) -> Callable:
         """_summary_
             裝飾器: 執行 SQL , 並更改從資料庫取得的資料型態
             Raw: 使用原本 function 的回傳
@@ -38,6 +40,7 @@ class DataBaseUtility:
             Dict: 方便 API 做後續操作
         """
         def decorator(func: Callable) -> Callable:
+            @cls.db_conn_template
             def wrapper(self, conn: connection, *args, **kwargs) -> Union[List[Dict[str, Any]], List[Any], Any]:
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
                     result = func(self, cursor, *args, **kwargs)
@@ -53,10 +56,12 @@ class DataBaseUtility:
             return wrapper
         return decorator
     
-    def db_commit(self, func: Callable) -> Callable:
+    @classmethod
+    def db_commit(cls, func: Callable) -> Callable:
         """_summary_
             裝飾器: 執行 SQL , 並將資料儲存到資料庫
         """
+        @cls.db_conn_template
         def wrapper(self, conn: connection, *args, **kwargs):
             with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cursor:
                 func(self, cursor, *args, **kwargs)
@@ -70,6 +75,9 @@ class DataBaseConnection:
     def __new__(cls, db_arg: Dict[str, str], minconn: int = 1, maxconn: int = 10) -> Type["DataBaseConnection"]:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            cls._instance = super().__new__(cls)
+            if db_arg is None:
+                raise ValueError("Database connection parameters are not provided")
             cls.pool = SimpleConnectionPool(
                 minconn=minconn,
                 maxconn=maxconn,
@@ -99,7 +107,6 @@ class DataBaseCreate(DataBaseUtility):
             self.create_table(check)
             
     @DataBaseUtility.db_get_data(return_type=ReturnType.List)
-    @DataBaseUtility.db_conn_template
     def table_list(self, cur: cursor) -> None:
         """_summary_
             用於取得目前資料庫所有的 table list
@@ -107,7 +114,6 @@ class DataBaseCreate(DataBaseUtility):
         cur.execute(DB_TABLE_COMMAND)
         
     @DataBaseUtility.db_commit
-    @DataBaseUtility.db_conn_template
     def create_table(self, cur: cursor, table_command: str) -> None:
         """_summary_
             依指令建立 table
@@ -122,9 +128,8 @@ class DataBaseCreate(DataBaseUtility):
                     self.create_table(create_command)
         
     @DataBaseUtility.db_commit
-    @DataBaseUtility.db_conn_template
     def add_extension(self, cur: cursor) -> None:
-        cur.execute(DB_EXTENSION.PGVECTOR)
+        cur.execute(DB_EXTENSION.PGVECTOR.value)
 
     
 class RAG(DataBaseUtility):
@@ -161,13 +166,11 @@ class RAG(DataBaseUtility):
         return pdf_path, embedding
         
     @DataBaseUtility.db_commit
-    @DataBaseUtility.db_conn_template
     def store_pdf(self, cur: cursor, pdf_path: str) -> None:
         pdf_path, embedding = self.deal_pdf(pdf_path)
         cur.execute(RAG_COMMAND.ADD_DOCUMENTS, (pdf_path, embedding))
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.Raw)
-    @DataBaseUtility.db_conn_template
     def retrieve_pdfs(self, cur: cursor, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         query_embedding = self.encoding_text(query)
         cur.execute(RAG_COMMAND.SEARCH_VECTOR, (query_embedding, limit))
