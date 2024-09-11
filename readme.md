@@ -44,7 +44,7 @@ pip install flash_attn-2.6.3+cu123torch2.2.2cxx11abiFALSE-cp311-cp311-win_amd64.
 
 4. 安裝 DB: https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
 
-5.安裝 https://github.com/pgvector/pgvector
+5.安裝 [https://github.com/pgvector/pgvector](https://visualstudio.microsoft.com/zh-hant/downloads/)
 
 6. 啟動 server
 uvicorn server:app --host 140.112.3.52 --reload or python server.py
