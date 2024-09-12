@@ -1,9 +1,8 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, UploadFile, File
 from contextlib import asynccontextmanager
 from DB.DB_Container import DataBaseContainer
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import Response
 from llm_model import LLM_MODEL
 from chat_room import Room
 import uvicorn
@@ -13,11 +12,12 @@ import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global llm, room_dict
+    global llm, room_dict, rag
     llm = LLM_MODEL()
-    database = DataBaseContainer()
-    database.db_conn()
-    database.db_create()
+    # database = DataBaseContainer()
+    # database.db_conn()
+    # database.db_create()
+    # rag = database.rag()
     room_dict = {}
     yield
    
@@ -48,6 +48,7 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 
         while True:
             data = await websocket.receive_text()
+            # response = await rag.rag_pipeline(data)
             await room.broadcast(data, llm)
 
     except WebSocketDisconnect:
@@ -58,8 +59,18 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
                 del room_dict[room_id]
  
 @app.post("/documents")               
-async def add_documents():
-    pass
+async def add_documents(file: UploadFile = File(...)):
+    try:
+        contents = await file.read()
+        file_path = f"temp_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(contents)
+        
+        rag.store_pdf(file_path)
+        os.remove(file_path)
+        return JSONResponse(content={"message": "文档已成功添加到 RAG 系统"}, status_code=200)
+    except Exception as e:
+        return JSONResponse(content={"message": f"添加文档时出错: {str(e)}"}, status_code=500)
 
 @app.put("/documents")               
 async def update_documents():
