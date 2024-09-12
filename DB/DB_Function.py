@@ -101,6 +101,15 @@ class DataBaseConnection:
             將與資料庫的連線放回 SimpleConnectionPool
         """
         cls.pool.putconn(conn)
+        
+    @classmethod
+    def closeall(cls) -> None:
+        """
+            關閉所有的資料庫連線
+        """
+        if cls.pool:
+            cls.pool.closeall()
+            cls.pool = None
 
 class DataBaseCreate(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection):
@@ -184,17 +193,17 @@ class RAG(DataBaseUtility):
     
     def search(self, query: str, limit: int = 5) -> List[str]:
         """
-        搜索与查询最相关的 PDF 块
+            搜尋最相關的 pdf
         """
         relevant_chunks = self.retrieve_pdfs(query, limit)
         return relevant_chunks
 
     async def generate_response(self, query: str, context: List[str]) -> str:
         """
-        基于检索到的上下文生成响应
+            base on context generate response
         """
         combined_context = " ".join(context)
-        prompt = f"""基于以下上下文回答问题：\n\n上下文：{combined_context}\n\n问题：{query}\n\n回答："""
+        prompt = f"""基於以下上下文回答問題：\n\n上下文：{combined_context}\n\n問題：{query}\n\n回答："""
         
         conversion, streamer = self.llm.generater_response(prompt)
         
@@ -207,7 +216,7 @@ class RAG(DataBaseUtility):
 
     async def rag_pipeline(self, query: str) -> str:
         """
-        完整的 RAG 流程
+            完整的 RAG 流程
         """
         relevant_chunks = self.search(query)
         response = await self.generate_response(query, relevant_chunks)

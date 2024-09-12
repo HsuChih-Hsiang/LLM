@@ -15,11 +15,12 @@ async def lifespan(app: FastAPI):
     global llm, room_dict, rag
     llm = LLM_MODEL()
     # database = DataBaseContainer()
-    # database.db_conn()
+    # db_conn = database.db_conn()
     # database.db_create()
     # rag = database.rag()
     room_dict = {}
     yield
+    # db_conn.closeall()  # 关闭所有 PostgreSQL 连接
    
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
@@ -50,6 +51,8 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
             data = await websocket.receive_text()
             # response = await rag.rag_pipeline(data)
             await room.broadcast(data, llm)
+            
+            # await websocket.send_text("[END_OF_RESPONSE]")
 
     except WebSocketDisconnect:
         if room_id in room_dict:
@@ -68,9 +71,9 @@ async def add_documents(file: UploadFile = File(...)):
         
         rag.store_pdf(file_path)
         os.remove(file_path)
-        return JSONResponse(content={"message": "文档已成功添加到 RAG 系统"}, status_code=200)
+        return JSONResponse(content={"message": "pdf 已成功新增到 RAG"}, status_code=200)
     except Exception as e:
-        return JSONResponse(content={"message": f"添加文档时出错: {str(e)}"}, status_code=500)
+        return JSONResponse(content={"message": f"新增檔案時發生問題: {str(e)}"}, status_code=500)
 
 @app.put("/documents")               
 async def update_documents():
