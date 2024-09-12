@@ -2,11 +2,14 @@ import torch
 import PyPDF2
 from enum import Enum
 import psycopg2.extras
+from llm_model import LLM_MODEL
 from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
 from sentence_transformers import SentenceTransformer
-from DB.DB_Enum import RAG_COMMAND, DB_EXTENSION, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND
+from DB.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND
+from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 
 
 class ReturnType(Enum):
@@ -132,9 +135,9 @@ class RAG(DataBaseUtility):
         self.model = SentenceTransformer('allenai/longformer-base-4096')
         self.max_seq_length = 4096
         self.embedding_dim = 768
-    
-    def encoding_text(self, text: str) -> List[float]:
-        return self.model.encode(text).tolist()
+        self.overlap = 50
+        self.tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+        self.llm = LLM_MODEL()
 
     def encoding_text(self, text: str) -> List[float]:
         if len(text.split()) <= self.max_seq_length:
@@ -143,11 +146,18 @@ class RAG(DataBaseUtility):
             chunks = self.split_text(text)
             embeddings = [self.model.encode(chunk) for chunk in chunks]
             return torch.mean(torch.stack(embeddings), dim=0).tolist()
+        
+    def extract_keywords(self, text: str, top_n: int = 5) -> List[str]:
+        tfidf_matrix = self.tfidf_vectorizer.transform([text])
+        feature_names = np.array(self.tfidf_vectorizer.get_feature_names_out())
+        tfidf_scores = tfidf_matrix.toarray()[0]
+        sorted_indices = np.argsort(tfidf_scores)[::-1]
+        return list(feature_names[sorted_indices[:top_n]])
 
-    def split_text(self, text: str, overlap: int = 50) -> List[str]:
+    def split_text(self, text: str) -> List[str]:
         words = text.split()
         chunks = []
-        for i in range(0, len(words), self.max_seq_length - overlap):
+        for i in range(0, len(words), self.max_seq_length - self.overlap):
             chunk = ' '.join(words[i:i + self.max_seq_length])
             chunks.append(chunk)
         return chunks
@@ -162,12 +172,44 @@ class RAG(DataBaseUtility):
     @DataBaseUtility.db_commit
     def store_pdf(self, cur: cursor, pdf_path: str) -> None:
         pdf_path, embedding = self.deal_pdf(pdf_path)
-        cur.execute(RAG_COMMAND.ADD_DOCIMENTS.value, (pdf_path, embedding))
+        cur.execute(RAG_COMMAND.ADD_DOCUMENTS.value, (pdf_path, embedding))
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.Raw)
     def retrieve_pdfs(self, cur: cursor, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         query_embedding = self.encoding_text(query)
-        cur.execute(RAG_COMMAND.SEARCH_VECTOR.value, (query_embedding, limit))
+        query_keywords = self.extract_keywords(query)
+        cur.execute(RAG_COMMAND.SEARCH_VECTOR.value, (query_embedding, query_keywords, limit))
         results = cur.fetchall()
         return [result[0] for result in results]
+    
+    def search(self, query: str, limit: int = 5) -> List[str]:
+        """
+        搜索与查询最相关的 PDF 块
+        """
+        relevant_chunks = self.retrieve_pdfs(query, limit)
+        return relevant_chunks
+
+    async def generate_response(self, query: str, context: List[str]) -> str:
+        """
+        基于检索到的上下文生成响应
+        """
+        combined_context = " ".join(context)
+        prompt = f"""基于以下上下文回答问题：\n\n上下文：{combined_context}\n\n问题：{query}\n\n回答："""
+        
+        conversion, streamer = self.llm.generater_response(prompt)
+        
+        full_response = ""
+        for new_text in streamer:
+            output = new_text.replace(conversion, '')
+            if output:
+                full_response += output
+        return full_response
+
+    async def rag_pipeline(self, query: str) -> str:
+        """
+        完整的 RAG 流程
+        """
+        relevant_chunks = self.search(query)
+        response = await self.generate_response(query, relevant_chunks)
+        return response
     
