@@ -26,9 +26,7 @@ activate test_env
 deactivate
 
 2.安裝相關套件
-pytorch 需到 torch 官網確認 torch 版本與 CUDA 的對應
-torch 要這樣安裝,否則會報錯
-https://pytorch.org/get-started/previous-versions/
+pytorch 需到 torch 官網(https://pytorch.org/get-started/previous-versions/)確認 torch 版本與 CUDA 的對應
 pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
 
 安裝其他套件
