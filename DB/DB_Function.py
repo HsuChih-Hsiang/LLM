@@ -1,3 +1,4 @@
+import os
 import torch
 import PyPDF2
 from enum import Enum
@@ -7,7 +8,7 @@ from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
 from sentence_transformers import SentenceTransformer
-from DB.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND
+from DB.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND, DB_EXTENSION
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 
@@ -50,11 +51,18 @@ class DataBaseUtility:
                     
                     if return_type == ReturnType.Raw:
                         return result
+                    
                     if return_type in (ReturnType.Dict, ReturnType.List):
                         fetched = cursor.fetchall()
+                        if not fetched:
+                            return []
+                    
                         if return_type == ReturnType.Dict:
-                            return [dict(row) for row in fetched]
-                        return [list(row) for row in fetched]
+                            column_names = [desc[0] for desc in cursor.description]
+                            return [dict(zip(column_names, row)) for row in fetched]
+                        
+                        if return_type == ReturnType.List:
+                            return [list(row) for row in fetched]
                     
             return wrapper
         return decorator
@@ -114,6 +122,7 @@ class DataBaseConnection:
 class DataBaseCreate(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection):
         super().__init__(db_connection)
+        self.add_extension()
         existing_tables = self.table_list()
         self.create_init_table(existing_tables)
             
@@ -130,6 +139,10 @@ class DataBaseCreate(DataBaseUtility):
             依指令建立 table
         """
         cur.execute(table_command)
+    
+    @DataBaseUtility.db_commit
+    def add_extension(self, cur: cursor) -> None:
+        cur.execute(DB_EXTENSION.PGVECTOR.value)
         
     def create_init_table(self, table_list: List):
         for table in DB_TABLE:
@@ -175,28 +188,31 @@ class RAG(DataBaseUtility):
         with open(pdf_path, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             text = "".join(page.extract_text() for page in reader.pages)
-        embedding = self.encoding_text(text)
-        return pdf_path, embedding
+        chunks = self.split_text(text)
+        chunk_data = []
+        for chunk in chunks:
+            embedding = self.encoding_text(chunk)
+            keywords = self.extract_keywords(chunk)
+            chunk_data.append((embedding, keywords))
+        return pdf_path, chunk_data
         
     @DataBaseUtility.db_commit
     def store_pdf(self, cur: cursor, pdf_path: str) -> None:
-        pdf_path, embedding = self.deal_pdf(pdf_path)
-        cur.execute(RAG_COMMAND.ADD_DOCUMENTS.value, (pdf_path, embedding))
+        file_name = os.path.basename(pdf_path)
+        _, chunk_data = self.deal_pdf(pdf_path)
+        cur.execute(RAG_COMMAND.INSERT_DOCUMENT.value, (file_name))
+        document_id = cur.fetchone()[0]
+        for embedding, keywords in chunk_data:
+            cur.execute(RAG_COMMAND.INSERT_DOCUMENT_EMBEDDING.value, (document_id, embedding, keywords))
 
-    @DataBaseUtility.db_get_data(return_type=ReturnType.Raw)
+    @DataBaseUtility.db_get_data(return_type=ReturnType.List)
     def retrieve_pdfs(self, cur: cursor, query: str, limit: int = 5) -> List[Dict[str, Any]]:
-        query_embedding = self.encoding_text(query)
-        query_keywords = self.extract_keywords(query)
-        cur.execute(RAG_COMMAND.SEARCH_VECTOR.value, (query_embedding, query_keywords, limit))
-        results = cur.fetchall()
-        return [result[0] for result in results]
-    
-    def search(self, query: str, limit: int = 5) -> List[str]:
         """
             搜尋最相關的 pdf
         """
-        relevant_chunks = self.retrieve_pdfs(query, limit)
-        return relevant_chunks
+        query_embedding = self.encoding_text(query)
+        query_keywords = self.extract_keywords(query)
+        cur.execute(RAG_COMMAND.SEARCH_VECTOR.value, (query_embedding, query_keywords, limit))
 
     async def generate_response(self, query: str, context: List[str]) -> str:
         """
@@ -218,7 +234,7 @@ class RAG(DataBaseUtility):
         """
             完整的 RAG 流程
         """
-        relevant_chunks = self.search(query)
+        relevant_chunks = self.retrieve_pdfs(query)
         response = await self.generate_response(query, relevant_chunks)
         return response
     
