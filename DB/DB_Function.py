@@ -16,7 +16,8 @@ import numpy as np
 class ReturnType(Enum):
     Dict = 1
     List = 2
-    Raw = 3
+    OneDimList = 3
+    Raw = 4
 
 class DataBaseUtility:
     def __init__(self, db_connection):
@@ -52,17 +53,20 @@ class DataBaseUtility:
                     if return_type == ReturnType.Raw:
                         return result
                     
-                    if return_type in (ReturnType.Dict, ReturnType.List):
+                    elif return_type in (ReturnType.Dict, ReturnType.List, ReturnType.OneDimList):
                         fetched = cursor.fetchall()
                         if not fetched:
                             return []
                     
-                        if return_type == ReturnType.Dict:
+                        elif return_type == ReturnType.Dict:
                             column_names = [desc[0] for desc in cursor.description]
                             return [dict(zip(column_names, row)) for row in fetched]
                         
-                        if return_type == ReturnType.List:
+                        elif return_type == ReturnType.List:
                             return [list(row) for row in fetched]
+                        
+                        elif return_type == ReturnType.OneDimList:
+                            return [row[0] for row in fetched]
                     
             return wrapper
         return decorator
@@ -205,8 +209,8 @@ class RAG(DataBaseUtility):
         for embedding, keywords in chunk_data:
             cur.execute(RAG_COMMAND.INSERT_DOCUMENT_EMBEDDING.value, (document_id, embedding, keywords))
 
-    @DataBaseUtility.db_get_data(return_type=ReturnType.List)
-    def retrieve_pdfs(self, cur: cursor, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    @DataBaseUtility.db_get_data(return_type=ReturnType.OneDimList)
+    def retrieve_pdfs(self, cur: cursor, query: str, limit: int = 5) -> List:
         """
             搜尋最相關的 pdf
         """
