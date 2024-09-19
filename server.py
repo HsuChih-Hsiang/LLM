@@ -14,13 +14,13 @@ import os
 async def lifespan(app: FastAPI):
     global llm, room_dict, rag
     llm = LLM_MODEL()
-    # database = DataBaseContainer()
-    # db_conn = database.db_conn()
-    # database.db_create()
-    # rag = database.rag()
+    database = DataBaseContainer()
+    db_conn = database.db_conn()
+    database.db_create()
+    rag = database.rag()
     room_dict = {}
     yield
-    # db_conn.closeall()  # 关闭所有 PostgreSQL 连接
+    db_conn.closeall()
    
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
@@ -49,10 +49,10 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 
         while True:
             data = await websocket.receive_text()
-            # response = await rag.rag_pipeline(data)
+            response = await rag.rag_pipeline(data)
             await room.broadcast(data, llm)
             
-            # await websocket.send_text("[END_OF_RESPONSE]")
+            await websocket.send_text("[END_OF_RESPONSE]")
 
     except WebSocketDisconnect:
         if room_id in room_dict:
