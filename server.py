@@ -1,9 +1,9 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, UploadFile, File
 from contextlib import asynccontextmanager
-from DB.DB_Container import DataBaseContainer
+from Database.DB_Container import DataBaseContainer
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
-from llm_model import LLMFactory
+from Model.llm_model import LLMFactory
 from chat_room import Room
 import uvicorn
 import uuid
@@ -13,7 +13,7 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global llm, room_dict, rag
-    llm = LLMFactory()
+    llm = LLMFactory.create_llm("Taiwam-LLM")
     # database = DataBaseContainer()
     # db_conn = database.db_conn()
     # database.db_create()
@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     # db_conn.closeall()
    
 app = FastAPI(lifespan=lifespan)
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="Templates")
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
@@ -69,7 +69,7 @@ async def add_documents(file: UploadFile = File(...)):
         with open(file_path, "wb") as f:
             f.write(contents)
         
-        rag.store_pdf(file_path)
+        await rag.store_pdf(file_path)
         os.remove(file_path)
         return JSONResponse(content={"message": "pdf 已成功新增到 RAG"}, status_code=200)
     except Exception as e:

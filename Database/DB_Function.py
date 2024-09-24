@@ -3,12 +3,12 @@ import torch
 import PyPDF2
 from enum import Enum
 import psycopg2.extras
-from llm_model import LLMFactory
+from Model.llm_model import LLMFactory
 from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
 from sentence_transformers import SentenceTransformer
-from DB.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND, DB_EXTENSION
+from Database.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND, DB_EXTENSION
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 
