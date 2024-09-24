@@ -3,7 +3,7 @@ import torch
 import PyPDF2
 from enum import Enum
 import psycopg2.extras
-from llm_model import LLM_MODEL
+from llm_model import LLMFactory
 from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
@@ -163,7 +163,7 @@ class RAG(DataBaseUtility):
         self.embedding_dim = 768
         self.overlap = 50
         self.tfidf_vectorizer = TfidfVectorizer(stop_words='english')
-        self.llm = LLM_MODEL()
+        self.llm = LLMFactory()
 
     def encoding_text(self, text: str) -> List[float]:
         if len(text.split()) <= self.max_seq_length:

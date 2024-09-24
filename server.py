@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from DB.DB_Container import DataBaseContainer
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
-from llm_model import LLM_MODEL
+from llm_model import LLMFactory
 from chat_room import Room
 import uvicorn
 import uuid
@@ -13,14 +13,14 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global llm, room_dict, rag
-    llm = LLM_MODEL()
-    database = DataBaseContainer()
-    db_conn = database.db_conn()
-    database.db_create()
-    rag = database.rag()
+    llm = LLMFactory()
+    # database = DataBaseContainer()
+    # db_conn = database.db_conn()
+    # database.db_create()
+    # rag = database.rag()
     room_dict = {}
     yield
-    db_conn.closeall()
+    # db_conn.closeall()
    
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
@@ -49,7 +49,7 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 
         while True:
             data = await websocket.receive_text()
-            response = await rag.rag_pipeline(data)
+            # response = await rag.rag_pipeline(data)
             await room.broadcast(data, llm)
             
             await websocket.send_text("[END_OF_RESPONSE]")
