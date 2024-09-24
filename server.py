@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     # db_conn.closeall()
    
 app = FastAPI(lifespan=lifespan)
-templates = Jinja2Templates(directory="Templates")
+templates = Jinja2Templates(directory="Template")
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():
