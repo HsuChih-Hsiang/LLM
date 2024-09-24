@@ -40,7 +40,7 @@ class DB_TABLE_COMMAND(Enum):
     
 class RAG_COMMAND(Enum):
     ADD_DOCUMENTS = "INSERT INTO documents (file_name, embedding) VALUES (%s, %s)"
-    ADD_DOCUMENTS = """INSERT INTO documents (chunk_id, embedding, keywords) VALUES (%s, %s, %s)"""
+    # ADD_DOCUMENTS = """INSERT INTO documents (chunk_id, embedding, keywords) VALUES (%s, %s, %s)"""
     SEARCH_VECTOR = """SELECT embedding FROM documents WHERE keywords && %s ORDER BY embedding <-> %s LIMIT %s"""
     
 class DB_EXTENSION(Enum):
