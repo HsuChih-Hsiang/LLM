@@ -1,4 +1,4 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, QuantoConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, pipeline
 from Model.model_enum import MODEL_INFO
 from threading import Thread, Lock
 import torch
@@ -21,11 +21,8 @@ class LLMModel:
 
         return conversion, streamer
 
-class BreezeModel(LLMModel):
-    _instance = None 
-    _lock = Lock()
-
-    def __new__(cls, model_name = MODEL_INFO.BREEZE.model_name, torch_dtype = MODEL_INFO.BREEZE.torch_dtype):
+class BasicModel(LLMModel):
+    def __new__(cls, model_name, torch_dtype):
         if cls._instance is None: 
             with cls._lock:
                 cls._instance = super().__new__(cls) 
@@ -39,14 +36,8 @@ class BreezeModel(LLMModel):
                 cls.tokenizer = AutoTokenizer.from_pretrained(model_name)
             return cls._instance
     
-class TaiwanLLMModel(BreezeModel):
-    _instance = None 
-    _lock = Lock()
-
-    def __new__(
-        cls, model_name = MODEL_INFO.TAIWAN_LLM.model_name, 
-        torch_dtype = MODEL_INFO.TAIWAN_LLM.torch_dtype, quanto_config = MODEL_INFO.TAIWAN_LLM.quanto_config
-        ):
+class QuantoModel(LLMModel):
+    def __new__(cls, model_name, torch_dtype, quanto_config):
         if cls._instance is None: 
             with cls._lock:
                 cls._instance = super().__new__(cls) 
@@ -64,9 +55,16 @@ class TaiwanLLMModel(BreezeModel):
 class LLMFactory:
     @staticmethod
     def create_llm(model_type: str = "Breeze"):
-        if model_type == "Breeze":
-            return BreezeModel()
-        elif model_type == "Taiwam-LLM":
-            return TaiwanLLMModel()
-        else:
-            raise ValueError(f"Unsupported model type: {model_type}")
+        try:
+            if model_type == "Breeze":
+                return BasicModel(MODEL_INFO.BREEZE.model_name, MODEL_INFO.BREEZE.torch_dtype)
+            elif model_type == "Light-Taiwan-LLM":
+                return BasicModel(MODEL_INFO.LIGHT_TAIWAN_LLM.model_name, torch_dtype = MODEL_INFO.LIGHT_TAIWAN_LLM.torch_dtype)
+            elif model_type == "Taiwan-LLM":
+                return QuantoModel(MODEL_INFO.TAIWAN_LLM.model_name, MODEL_INFO.TAIWAN_LLM.torch_dtype, MODEL_INFO.TAIWAN_LLM.quanto_config)
+            else:
+                raise ValueError(f"Unsupported model type: {model_type}")
+        except ValueError as ve:
+            print(ve)
+        except Exception as e:
+            print(e)

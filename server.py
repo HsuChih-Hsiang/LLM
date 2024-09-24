@@ -13,7 +13,7 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global llm, room_dict, rag
-    llm = LLMFactory.create_llm("Taiwam-LLM")
+    llm = LLMFactory.create_llm("Taiwan-LLM")
     # database = DataBaseContainer()
     # db_conn = database.db_conn()
     # database.db_create()
@@ -51,8 +51,6 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
             data = await websocket.receive_text()
             # response = await rag.rag_pipeline(data)
             await room.broadcast(data, llm)
-            
-            await websocket.send_text("[END_OF_RESPONSE]")
 
     except WebSocketDisconnect:
         if room_id in room_dict:

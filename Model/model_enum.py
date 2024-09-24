@@ -14,6 +14,11 @@ class MODEL_INFO(Enum):
         "quanto_config": QuantoConfig(weights="int4")
     }
     
+    LIGHT_TAIWAN_LLM = {
+        "model_name": "yentinglin/Llama-3-Taiwan-8B-Instruct",
+        "torch_dtype": torch.bfloat16
+    }
+    
     @property
     def model_name(self):
         return self.value.get("model_name")
@@ -25,3 +30,9 @@ class MODEL_INFO(Enum):
     @property
     def quanto_config(self):
         return self.value.get("quanto_config")
+    
+    def model_list(self):
+        model_list = []
+        for name, _ in MODEL_INFO.__members__.items():
+            model_list.append(name)
+        return model_list
