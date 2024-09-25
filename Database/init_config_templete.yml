@@ -1,6 +1,0 @@
-db_config:
-  database: ""
-  user: ""
-  password: 
-  host: ""
-  port: ""
