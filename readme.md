@@ -45,7 +45,6 @@ torch=2.2.2<br>
 python=3.11<br>
 CUDA=12.3 (但安裝 12.6 亦可使用)<br>
 pip install flash_attn-2.6.3+cu123torch2.2.2cxx11abiFALSE-cp311-cp311-win_amd64.whl<br>
-
 2. 先設定系統變數再進行編譯<br>
 set MAX_JOBS=128<br>
 python -m pip install flash-attn
