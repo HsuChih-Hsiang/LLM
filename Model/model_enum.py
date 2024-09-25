@@ -1,8 +1,14 @@
-from transformers import QuantoConfig
 from enum import Enum
 import torch
 
 class MODEL_INFO(Enum):
+    MODEL_TEMPLATE = {
+        "pretrained_model_name_or_path": None,
+        "device_map": None,
+        "attn_implementation": None,
+        "torch_dtype": None
+    }
+    
     BREEZE = {
         "pretrained_model_name_or_path": "MediaTek-Research/Breeze-7B-Instruct-v1_0",
         "device_map": "auto",
@@ -14,8 +20,7 @@ class MODEL_INFO(Enum):
         "pretrained_model_name_or_path": "yentinglin/Llama-3-Taiwan-70B-Instruct",
         "device_map": "auto",
         "attn_implementation": "flash_attention_2",
-        "torch_dtype": torch.bfloat16,
-        "quantization_config": QuantoConfig(weights="int4")
+        "torch_dtype": torch.bfloat16
     }
     
     LIGHT_TAIWAN_LLM = {
@@ -24,18 +29,6 @@ class MODEL_INFO(Enum):
         "attn_implementation": "flash_attention_2",
         "torch_dtype": torch.bfloat16
     }
-    
-    @property
-    def model_name(self):
-        return self.value.get("model_name")
-
-    @property
-    def torch_dtype(self):
-        return self.value.get("torch_dtype")
-    
-    @property
-    def quanto_config(self):
-        return self.value.get("quanto_config")
     
     def model_list(self):
         model_list = []
