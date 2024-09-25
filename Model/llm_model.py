@@ -1,14 +1,15 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer, pipeline
 from Model.model_enum import MODEL_INFO
 from threading import Thread, Lock
+from typing import Dict
 import torch
 
-class LLMModel:
+class LLM_Utility:
     _instance = None 
     _lock = Lock()
 
     @classmethod
-    def generater_response(self, message):
+    def generater_response(self, message: str):
         chat = [
         {"role": "user", "content": message},
         ]
@@ -21,35 +22,14 @@ class LLMModel:
 
         return conversion, streamer
 
-class BasicModel(LLMModel):
-    def __new__(cls, model_name, torch_dtype):
+class BasicModel(LLM_Utility):
+    def __new__(cls, data: Dict):
         if cls._instance is None: 
             with cls._lock:
                 cls._instance = super().__new__(cls) 
-                cls.model = AutoModelForCausalLM.from_pretrained(
-                    model_name,
-                    device_map="auto",
-                    torch_dtype=torch_dtype,
-                    attn_implementation="flash_attention_2"
-                    )
+                cls.model = AutoModelForCausalLM.from_pretrained(**data)
                 cls.device = torch.device("cuda")
-                cls.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            return cls._instance
-    
-class QuantoModel(LLMModel):
-    def __new__(cls, model_name, torch_dtype, quanto_config):
-        if cls._instance is None: 
-            with cls._lock:
-                cls._instance = super().__new__(cls) 
-                cls.model = AutoModelForCausalLM.from_pretrained(
-                    model_name,
-                    device_map="auto",
-                    torch_dtype=torch_dtype,
-                    attn_implementation="flash_attention_2",
-                    quantization_config=quanto_config
-                    )
-                cls.device = torch.device("cuda")
-                cls.tokenizer = AutoTokenizer.from_pretrained(model_name)
+                cls.tokenizer = AutoTokenizer.from_pretrained(data.get("pretrained_model_name_or_path"))
             return cls._instance
     
 class LLMFactory:
@@ -57,11 +37,11 @@ class LLMFactory:
     def create_llm(model_type: str = "Breeze"):
         try:
             if model_type == "Breeze":
-                return BasicModel(MODEL_INFO.BREEZE.model_name, MODEL_INFO.BREEZE.torch_dtype)
+                return BasicModel(MODEL_INFO.BREEZE.value)
             elif model_type == "Light-Taiwan-LLM":
-                return BasicModel(MODEL_INFO.LIGHT_TAIWAN_LLM.model_name, torch_dtype = MODEL_INFO.LIGHT_TAIWAN_LLM.torch_dtype)
+                return BasicModel(MODEL_INFO.LIGHT_TAIWAN_LLM.value)
             elif model_type == "Taiwan-LLM":
-                return QuantoModel(MODEL_INFO.TAIWAN_LLM.model_name, MODEL_INFO.TAIWAN_LLM.torch_dtype, MODEL_INFO.TAIWAN_LLM.quanto_config)
+                return BasicModel(MODEL_INFO.TAIWAN_LLM.value)
             else:
                 raise ValueError(f"Unsupported model type: {model_type}")
         except ValueError as ve:
