@@ -30,18 +30,25 @@ deactivate
 <h4>2.安裝相關套件</h4>
 pytorch 需到 torch 官網( https://pytorch.org/get-started/previous-versions/ )<br>
 確認 torch 版本與 CUDA 的對應<br>
-pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+兩種方法，對應不同的 flash-attn 安裝方式<br>
+1. pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121<br>
+2. pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121<br>
+**Note: torch 2.4.1 才能使用 optimum-quanto**
 
 安裝其他套件<br>
 pip3 install -r .\requirement.txt
 
 <h4>3.flash attn 安裝流程(最容易報錯, 須注意)</h4>
 https://github.com/bdashore3/flash-attention/releases<br>
-下載對應版本的 flash attn<br>
+1. 下載對應版本的 flash attn<br>
 torch=2.2.2<br>
 python=3.11<br>
 CUDA=12.3 (但安裝 12.6 亦可使用)<br>
-pip install flash_attn-2.6.3+cu123torch2.2.2cxx11abiFALSE-cp311-cp311-win_amd64.whl
+pip install flash_attn-2.6.3+cu123torch2.2.2cxx11abiFALSE-cp311-cp311-win_amd64.whl<br>
+
+2. 先設定系統變數再進行編譯<br>
+set MAX_JOBS=128<br>
+python -m pip install flash-attn
 
 <h4>4.安裝 DB: https://www.enterprisedb.com/downloads/postgres-postgresql-downloads</h4>
 
