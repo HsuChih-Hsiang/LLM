@@ -53,5 +53,9 @@ git clone https://github.com/pgvector/pgvector.git
 <h4>7.以系統管理員執行 data/pgvector.bat</h4>
 其中資料夾位置及PostgreSQL的位置須自行更改
 
-<h4>8.啟動 server</h4>
+<h4>8. 新增系統變數</h4>
+將下列路徑新增至系統變數
+C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.41.34120\bin\Hostx64\x64
+
+<h4>9.啟動 server</h4>
 uvicorn server:app --host 140.112.3.52 --reload or python server.py
