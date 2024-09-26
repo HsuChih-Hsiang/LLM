@@ -33,6 +33,7 @@ pytorch 需到 torch 官網( https://pytorch.org/get-started/previous-versions/ 
 兩種方法，對應不同的 flash-attn 安裝方式<br>
 1. pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121<br>
 2. pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121<br>
+
 **Note: torch 2.4.1 才能使用 optimum-quanto**
 
 安裝其他套件<br>
