@@ -89,7 +89,6 @@ class DataBaseConnection:
     def __new__(cls, db_arg: Dict[str, str], minconn: int = 1, maxconn: int = 10) -> Type["DataBaseConnection"]:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance = super().__new__(cls)
             if db_arg is None:
                 raise ValueError("Database connection parameters are not provided")
             cls.pool = SimpleConnectionPool(

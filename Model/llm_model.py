@@ -1,5 +1,6 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 from optimum.quanto import qint8, QuantizedModelForCausalLM
+from Utility.config import Configuration, ConfigKey
 from Model.model_enum import MODEL_INFO
 from threading import Thread, Lock
 from typing import Dict
@@ -39,7 +40,7 @@ class BasicModel(LLM_Utility):
         if cls._instance is None: 
             with cls._lock:
                 cls._instance = super().__new__(cls) 
-                cls.model = AutoModelForCausalLM.from_pretrained(**data, cache_dir=HuggingfaceDir.CACHE_DIR.value)
+                cls.model = AutoModelForCausalLM.from_pretrained(**data, cache_dir=Configuration().get_value(ConfigKey.CACHE_DIR.value))
                 cls.device = torch.device("cuda")
                 cls.tokenizer = AutoTokenizer.from_pretrained(data.get("pretrained_model_name_or_path"))
             return cls._instance
@@ -52,7 +53,7 @@ class AWQModel_8bit(LLM_Utility):
         if cls._instance is None: 
             with cls._lock:
                 cls._instance = super().__new__(cls)
-                cls.model =AutoModelForCausalLM.from_pretrained(**data).tras
+                cls.model =AutoModelForCausalLM.from_pretrained(**data, cache_dir=Configuration().get_value(ConfigKey.CACHE_DIR.value))
                 qmodel = QuantizedModelForCausalLM.quantize(cls.model, weights=qint8, exclude='lm_head')
                 cls.device = torch.device("cuda")
                 cls.tokenizer = AutoTokenizer.from_pretrained(data.get("pretrained_model_name_or_path"))

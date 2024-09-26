@@ -13,7 +13,7 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global llm, room_dict, rag
-    llm = LLMFactory.create_llm("Taiwan-LLM")
+    llm = LLMFactory.create_llm("Light-Taiwan-LLM")
     # database = DataBaseContainer()
     # db_conn = database.db_conn()
     # database.db_create()
