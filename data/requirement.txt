@@ -13,3 +13,4 @@ dependency_injector
 python-multipart
 yaml
 optimum-quanto
+toml
