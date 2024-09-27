@@ -1,5 +1,5 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-from Model.model_enum import Model_Info, Model_Mapping
+from Model.model_enum import Model_Info
 from threading import Thread, Lock
 from typing import Dict
 import torch
