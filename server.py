@@ -13,14 +13,14 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global llm, room_dict, rag
-    llm = LLMFactory.create_llm("Light-Taiwan-LLM")
-    # database = DataBaseContainer()
-    # db_conn = database.db_conn()
+    llm = LLMFactory.create_llm("Taiwan-LLM")
+    database = DataBaseContainer()
+    db_conn = database.db_conn()
     # database.db_create()
     # rag = database.rag()
     room_dict = {}
     yield
-    # db_conn.closeall()
+    db_conn.closeall()
    
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="Template")

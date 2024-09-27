@@ -4,6 +4,7 @@ import json
 import toml
 import logging
 from enum import Enum
+from typing import Any
 
 class ConfigKey(Enum):
     CACHE_DIR = "cache_dir"
@@ -27,7 +28,7 @@ class Configuration:
         except (yaml.YAMLError, json.JSONDecodeError, toml.TomlDecodeError) as e:
             logging.error(f"Error parsing {config}: {e}")
 
-    def get_value(self, key: str):
+    def get_value(self, key: str) -> Any:
         return self.config.get(key)
 
  

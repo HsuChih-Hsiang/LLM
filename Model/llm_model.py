@@ -1,6 +1,4 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-from optimum.quanto import qint8, QuantizedModelForCausalLM
-from Utility.config import Configuration, ConfigKey
 from Model.model_enum import MODEL_INFO
 from threading import Thread, Lock
 from typing import Dict
@@ -8,15 +6,7 @@ import torch
 
 class LLM_Utility:
     _instance = None 
-    _lock = Lock()
-    
-    @classmethod
-    def check_model_param(self, data: Dict):
-        for key, _ in MODEL_INFO.MODEL_TEMPLATE.value.items():
-            if not data.get(key):
-                return False
-        return True
-            
+    _lock = Lock()       
 
     @classmethod
     def generater_response(self, message: str, tokens: int = 1000):
@@ -34,32 +24,14 @@ class LLM_Utility:
 
 class BasicModel(LLM_Utility):
     def __new__(cls, data: Dict):
-        if not cls.check_model_param(data):
-            raise ValueError(f"lack model parameter")
-        
         if cls._instance is None: 
             with cls._lock:
                 cls._instance = super().__new__(cls) 
-                cls.model = AutoModelForCausalLM.from_pretrained(**data, cache_dir=Configuration().get_value(ConfigKey.CACHE_DIR.value))
-                cls.device = torch.device("cuda")
-                cls.tokenizer = AutoTokenizer.from_pretrained(data.get("pretrained_model_name_or_path"))
-            return cls._instance
-        
-class AWQModel_8bit(LLM_Utility):
-    def __new__(cls, data: Dict):
-        if not cls.check_model_param(data):
-            raise ValueError(f"lack model parameter")
-        
-        if cls._instance is None: 
-            with cls._lock:
-                cls._instance = super().__new__(cls)
-                cls.model =AutoModelForCausalLM.from_pretrained(**data, cache_dir=Configuration().get_value(ConfigKey.CACHE_DIR.value))
-                qmodel = QuantizedModelForCausalLM.quantize(cls.model, weights=qint8, exclude='lm_head')
+                cls.model = AutoModelForCausalLM.from_pretrained(**data)
                 cls.device = torch.device("cuda")
                 cls.tokenizer = AutoTokenizer.from_pretrained(data.get("pretrained_model_name_or_path"))
             return cls._instance
             
-    
 class LLMFactory:
     @staticmethod
     def create_llm(model_type: str = "Breeze"):
@@ -69,7 +41,7 @@ class LLMFactory:
             elif model_type == "Light-Taiwan-LLM":
                 return BasicModel(MODEL_INFO.LIGHT_TAIWAN_LLM.value)
             elif model_type == "Taiwan-LLM":
-                return AWQModel_8bit(MODEL_INFO.TAIWAN_LLM.value)
+                return BasicModel(MODEL_INFO.TAIWAN_LLM.value)
             else:
                 raise ValueError(f"Unsupported model type: {model_type}")
         except ValueError as ve:
