@@ -1,5 +1,5 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-from Model.model_enum import MODEL_INFO
+from Model.model_enum import Model_Info, Model_Mapping
 from threading import Thread, Lock
 from typing import Dict
 import torch
@@ -37,11 +37,11 @@ class LLMFactory:
     def create_llm(model_type: str = "Breeze"):
         try:
             if model_type == "Breeze":
-                return BasicModel(MODEL_INFO.BREEZE.value)
+                return BasicModel(Model_Info.BREEZE.value)
             elif model_type == "Light-Taiwan-LLM":
-                return BasicModel(MODEL_INFO.LIGHT_TAIWAN_LLM.value)
+                return BasicModel(Model_Info.LIGHT_TAIWAN_LLM.value)
             elif model_type == "Taiwan-LLM":
-                return BasicModel(MODEL_INFO.TAIWAN_LLM.value)
+                return BasicModel(Model_Info.TAIWAN_LLM.value)
             else:
                 raise ValueError(f"Unsupported model type: {model_type}")
         except ValueError as ve:
