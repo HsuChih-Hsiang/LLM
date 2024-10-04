@@ -1,9 +1,8 @@
-import os
 from dependency_injector import containers, providers
-from Database.Database_Function import DataBaseConnection, DataBaseCreate, RAG
+from Database.Util.Database_Function import DataBaseConnection, DataBaseCreate
+from Database.Rag.Retrieval_Augmented_Generation import RAG
 
 class DataBaseContainer(containers.DeclarativeContainer):
-    # config_path =  os.path.abspath(os.path.join(os.path.dirname(__file__), "init_config.yml"))
     config_path =  "init_config.yml"
     config = providers.Configuration()
     config.from_yaml(config_path, required=True)
