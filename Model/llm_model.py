@@ -1,6 +1,6 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 from jinja2.nativetypes import NativeEnvironment
-from Model.model_enum import Model_Info
+from Model.model_enum import ModelInfo
 from threading import Thread, Lock
 from typing import Dict
 import torch
@@ -46,13 +46,13 @@ class LLMFactory:
     def create_llm(model_type: str = "Breeze"):
         try:
             if model_type == "Breeze":
-                return BasicModel(Model_Info.BREEZE.value)
+                return BasicModel(ModelInfo.BREEZE.value)
             elif model_type == "Breeze-FC":
-                return BasicModel(Model_Info.BREEZE_FC.value)
+                return BasicModel(ModelInfo.BREEZE_FC.value)
             elif model_type == "Light-Taiwan-LLM":
-                return BasicModel(Model_Info.LIGHT_TAIWAN_LLM.value)
+                return BasicModel(ModelInfo.LIGHT_TAIWAN_LLM.value)
             elif model_type == "Taiwan-LLM":
-                return BasicModel(Model_Info.TAIWAN_LLM.value)
+                return BasicModel(ModelInfo.TAIWAN_LLM.value)
             else:
                 raise ValueError(f"Unsupported model type: {model_type}")
         except ValueError as ve:

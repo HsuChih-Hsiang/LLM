@@ -1,7 +1,9 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, UploadFile, File
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from contextlib import asynccontextmanager
+from API_Model.document_model import DocumentCreate
+from API_Model.api_enum import FileType
 from Utility.config import Configuration, ConfigKey
-from Database.DB_Container import DataBaseContainer
+from Database.Database_Container import DataBaseContainer
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from Model.llm_model import LLMFactory
@@ -17,9 +19,8 @@ async def lifespan(app: FastAPI):
     llm = LLMFactory.create_llm(Configuration().get_value(ConfigKey.LLM_MODEL.value))
     database = DataBaseContainer()
     db_conn = database.db_conn()
-    rag = 1
-    # database.db_create()
-    # rag = database.rag()
+    database.db_create()
+    rag = database.rag()
     room_dict = {}
     yield
     db_conn.closeall()
@@ -61,15 +62,17 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
                 del room_dict[room_id]
  
 @app.post("/documents")               
-async def add_documents(file: UploadFile = File(...)):
+async def add_documents(document: DocumentCreate):
     try:
-        contents = await file.read()
-        file_path = f"temp_{file.filename}"
-        with open(file_path, "wb") as f:
-            f.write(contents)
+        if document.file:
+            name, text = rag.pdf_dealer(document.file)
+            file_type = FileType.PDF.value()
+        elif document.name and document.text:
+            name, text, file_type = document.name, document.text, FileType.TEXT.value()
+        else:
+            raise JSONResponse(content={"message": "Invalid request"}, status_code=400)
         
-        await rag.store_pdf(file_path)
-        os.remove(file_path)
+        await rag.store_text(name, text, file_type)
         return JSONResponse(content={"message": "pdf 已成功新增到 RAG"}, status_code=200)
     except Exception as e:
         return JSONResponse(content={"message": f"新增檔案時發生問題: {str(e)}"}, status_code=500)
