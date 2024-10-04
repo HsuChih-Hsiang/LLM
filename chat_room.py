@@ -4,9 +4,9 @@ class Room:
         self.connections = []
 
     async def broadcast(self, response, llm, rag):
-        # response = await rag.rag_pipeline(response)
         
         for connection in self.connections:
+            response = rag.rag_pipeline(response)
             conversion, streamer = llm.generater_response(response)
 
         for new_text in streamer:

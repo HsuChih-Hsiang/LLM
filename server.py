@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from API_Model.document_model import DocumentCreate
 from API_Model.api_enum import FileType
 from Utility.config import Configuration, ConfigKey
-from Database.Database_Container import DataBaseContainer
+from Database.Util.Database_Container import DataBaseContainer
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from Model.llm_model import LLMFactory
