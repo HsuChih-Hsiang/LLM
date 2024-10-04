@@ -1,6 +1,12 @@
+# Move this configuration file into the ./LLM directory and rename it to init_config.yml
 db_config:
   database: ""
   user: ""
   password: 
   host: ""
   port: ""
+
+cache_dir: 'D:\\cache\\huggingface\\transformers'
+
+# Breeze, Light-Taiwan-LLM
+llm_model: Light-Taiwan-LLM

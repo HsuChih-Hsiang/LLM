@@ -1,21 +1,30 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+from jinja2.nativetypes import NativeEnvironment
 from Model.model_enum import Model_Info
 from threading import Thread, Lock
 from typing import Dict
 import torch
 
 class LLM_Utility:
-    _instance = None 
+    _instance, _tokenizer, _model, _device = None, None, None, None
     _lock = Lock()       
+    
+    @classmethod
+    def set_chat_templete(self):
+        self.tokenizer.chat_template = """
+        {% for message in messages %}{% if loop.first %}[gMASK]sop<|{{ message['role'] }}|> \n 
+        {{ message['content'] }}{% else %}<|{{ message['role'] }}|> \n 
+        {{ message['content'] }}{% endif %}{% endfor %}{% if add_generation_prompt %}<|assistant|>{% endif %}
+        """
 
     @classmethod
     def generater_response(self, message: str, tokens: int = 1000):
         chat = [
-        {"role": "user", "content": message},
+            {"role": "user", "content": message},
         ]
-        conversion = self.tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
-        encoding = self.tokenizer(conversion, return_tensors="pt").to(self.device)
-        streamer = TextIteratorStreamer(self.tokenizer)
+        conversion = self._tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
+        encoding = self._tokenizer(conversion, return_tensors="pt").to(self.device)
+        streamer = TextIteratorStreamer(self._tokenizer)
         generation_kwargs = dict(encoding, streamer=streamer, max_new_tokens=tokens)
         thread = Thread(target=self.model.generate, kwargs=generation_kwargs)
         thread.start()
@@ -29,7 +38,7 @@ class BasicModel(LLM_Utility):
                 cls._instance = super().__new__(cls) 
                 cls.model = AutoModelForCausalLM.from_pretrained(**data)
                 cls.device = torch.device("cuda")
-                cls.tokenizer = AutoTokenizer.from_pretrained(data.get("pretrained_model_name_or_path"))
+                cls._tokenizer = AutoTokenizer.from_pretrained(data.get("pretrained_model_name_or_path"))
             return cls._instance
             
 class LLMFactory:
@@ -38,6 +47,8 @@ class LLMFactory:
         try:
             if model_type == "Breeze":
                 return BasicModel(Model_Info.BREEZE.value)
+            elif model_type == "Breeze-FC":
+                return BasicModel(Model_Info.BREEZE_FC.value)
             elif model_type == "Light-Taiwan-LLM":
                 return BasicModel(Model_Info.LIGHT_TAIWAN_LLM.value)
             elif model_type == "Taiwan-LLM":

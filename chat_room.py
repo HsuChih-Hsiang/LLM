@@ -3,9 +3,11 @@ class Room:
         self.room = room_id
         self.connections = []
 
-    async def broadcast(self, message, llm):
+    async def broadcast(self, response, llm, rag):
+        # response = await rag.rag_pipeline(response)
+        
         for connection in self.connections:
-            conversion, streamer = llm.generater_response(message)
+            conversion, streamer = llm.generater_response(response)
 
         for new_text in streamer:
             output = new_text.replace(conversion, '')

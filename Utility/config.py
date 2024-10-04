@@ -8,6 +8,7 @@ from typing import Any
 
 class ConfigKey(Enum):
     CACHE_DIR = "cache_dir"
+    LLM_MODEL = "llm_model"
 
 class Configuration:
     def __init__(self, config: str = 'init_config.yml'):
