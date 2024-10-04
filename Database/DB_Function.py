@@ -7,7 +7,7 @@ from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
 from sentence_transformers import SentenceTransformer
-from Database.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND, DB_EXTENSION
+from Database.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND, DB_EXTENSION, DOCUMENTS_COMMAND
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 
@@ -194,16 +194,22 @@ class RAG(DataBaseUtility):
         for chunk in chunks:
             embedding = self.encoding_text(chunk)
             keywords = self.extract_keywords(chunk)
-            chunk_data.append((embedding, keywords))
+            data = {
+                "text": chunk,
+                "embedding": embedding,
+                "keywords": keywords
+            }
+            chunk_data.append(data)
         return pdf_path, chunk_data
         
     @DataBaseUtility.db_commit
-    def store_pdf(self, cur: cursor, pdf_path: str) -> None:
+    def store_pdf(self, cur: cursor, pdf_path: str, file_type: int = 0) -> None:
         file_name = os.path.basename(pdf_path)
         _, chunk_data = self.deal_pdf(pdf_path)
-        cur.execute(RAG_COMMAND.INSERT_DOCUMENT.value, (file_name))
+        cur.execute(DOCUMENTS_COMMAND.ADD_DOCUMENTS.value, (file_name, file_type))
         document_id = cur.fetchone()[0]
-        for embedding, keywords in chunk_data:
+        for data in chunk_data:
+            text, embedding, keywords = data["text"], data["embedding"], data["keywords"]
             cur.execute(RAG_COMMAND.INSERT_DOCUMENT_EMBEDDING.value, (document_id, embedding, keywords))
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.OneDimList)
