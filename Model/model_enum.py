@@ -4,7 +4,7 @@ from typing import Dict, List
 from enum import Enum
 import torch
 
-class Model_Info(Enum):
+class ModelInfo(Enum):
     BREEZE = {
         "pretrained_model_name_or_path": "MediaTek-Research/Breeze-7B-Instruct-v1_0",
         "device_map": "auto",
@@ -37,4 +37,4 @@ class Model_Info(Enum):
     }
     
     def model_list() -> List:
-        return [item.name for item in Model_Info]
+        return [item.name for item in ModelInfo]

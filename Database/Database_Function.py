@@ -7,7 +7,7 @@ from psycopg2.extensions import connection, cursor
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
 from sentence_transformers import SentenceTransformer
-from Database.DB_Enum import RAG_COMMAND, DB_TABLE, CREATE_TABLE_COMMAND, DB_TABLE_COMMAND, DB_EXTENSION, DOCUMENTS_COMMAND
+from Database.Database_Enum import RagCommand, DatabaseTable, CreateTableCommand, DatabaseTableCommand, DatabaseExtension, DocumentsCommand
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 
@@ -133,7 +133,7 @@ class DataBaseCreate(DataBaseUtility):
         """_summary_
             用於取得目前資料庫所有的 table list
         """
-        cur.execute(DB_TABLE_COMMAND.CHECK.value)
+        cur.execute(DatabaseTableCommand.CHECK.value)
         
     @DataBaseUtility.db_commit
     def create_table(self, cur: cursor, table_command: str) -> None:
@@ -144,12 +144,12 @@ class DataBaseCreate(DataBaseUtility):
     
     @DataBaseUtility.db_commit
     def add_extension(self, cur: cursor) -> None:
-        cur.execute(DB_EXTENSION.PGVECTOR.value)
+        cur.execute(DatabaseExtension.PGVECTOR.value)
         
     def create_init_table(self, table_list: List):
-        for table in DB_TABLE:
+        for table in DatabaseTable:
             if table.value not in table_list:
-                create_command = getattr(CREATE_TABLE_COMMAND, table.name, None)
+                create_command = getattr(CreateTableCommand, table.name, None)
                 if create_command:
                     self.create_table(create_command.value)
     
@@ -184,11 +184,14 @@ class RAG(DataBaseUtility):
             chunk = ' '.join(words[i:i + self.max_seq_length])
             chunks.append(chunk)
         return chunks
-
-    def deal_pdf(self, pdf_path: str) -> None:       
-        with open(pdf_path, 'rb') as pdf_file:
+    
+    def pdf_dealer(self, doc: bytes|str):
+        with open(doc, 'rb') as pdf_file:
             reader = PyPDF2.PdfReader(pdf_file)
             text = "".join(page.extract_text() for page in reader.pages)
+        return pdf_file.name, text
+        
+    def deal_text(self, text: str) -> None:    
         chunks = self.split_text(text)
         chunk_data = []
         for chunk in chunks:
@@ -200,26 +203,26 @@ class RAG(DataBaseUtility):
                 "keywords": keywords
             }
             chunk_data.append(data)
-        return pdf_path, chunk_data
+        return chunk_data
         
     @DataBaseUtility.db_commit
-    def store_pdf(self, cur: cursor, pdf_path: str, file_type: int = 0) -> None:
-        file_name = os.path.basename(pdf_path)
-        _, chunk_data = self.deal_pdf(pdf_path)
-        cur.execute(DOCUMENTS_COMMAND.ADD_DOCUMENTS.value, (file_name, file_type))
+    def store_text(self, cur: cursor, file_name:str, text: List[str], file_type: int = 0) -> None:
+        cur.execute(DocumentsCommand.ADD_DOCUMENTS.value, (file_name, file_type))
         document_id = cur.fetchone()[0]
-        for data in chunk_data:
+        for data in text:
             text, embedding, keywords = data["text"], data["embedding"], data["keywords"]
-            cur.execute(RAG_COMMAND.INSERT_DOCUMENT_EMBEDDING.value, (document_id, embedding, keywords))
+            cur.execute(RagCommand.INSERT_DOCUMENT_CHUNK.value, (document_id, text))
+            chunk_id = cur.fetchone()[0]
+            cur.execute(RagCommand.INSERT_DOCUMENT_EMBEDDING.value, (chunk_id, embedding, keywords))
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.OneDimList)
-    def retrieve_pdfs(self, cur: cursor, query: str, limit: int = 5) -> List:
+    def retrieve_text(self, cur: cursor, query: str, limit: int = 5) -> List:
         """
             搜尋最相關的 pdf
         """
         query_embedding = self.encoding_text(query)
         query_keywords = self.extract_keywords(query)
-        cur.execute(RAG_COMMAND.SEARCH_VECTOR.value, (query_embedding, query_keywords, limit))
+        cur.execute(RagCommand.SEARCH_VECTOR.value, (query_embedding, query_keywords, limit))
 
     async def generate_response(self, query: str, context: List[str]) -> str:
         """
@@ -234,7 +237,7 @@ class RAG(DataBaseUtility):
         """
             完整的 RAG 流程
         """
-        relevant_chunks = self.retrieve_pdfs(query)
-        response = await self.generate_response(query, relevant_chunks)
+        relevant_chunks = self.retrieve_text(query)
+        response = self.generate_response(query, relevant_chunks)
         return response
     
