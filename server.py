@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, UploadFile, File
 from contextlib import asynccontextmanager
+from Utility.config import Configuration, ConfigKey
 from Database.DB_Container import DataBaseContainer
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -13,9 +14,10 @@ import os
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global llm, room_dict, rag
-    llm = LLMFactory.create_llm("Taiwan-LLM")
+    llm = LLMFactory.create_llm(Configuration().get_value(ConfigKey.LLM_MODEL.value))
     database = DataBaseContainer()
     db_conn = database.db_conn()
+    rag = 1
     # database.db_create()
     # rag = database.rag()
     room_dict = {}
@@ -49,8 +51,7 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 
         while True:
             data = await websocket.receive_text()
-            # response = await rag.rag_pipeline(data)
-            await room.broadcast(data, llm)
+            await room.broadcast(data, llm, rag)
 
     except WebSocketDisconnect:
         if room_id in room_dict:
