@@ -6,7 +6,7 @@ class Room:
     async def broadcast(self, response, llm, rag):
         
         for connection in self.connections:
-            response = rag.rag_pipeline(response)
+            # response = rag.rag_pipeline(response)
             conversion, streamer = llm.generater_response(response)
 
         for new_text in streamer:
