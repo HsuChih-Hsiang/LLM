@@ -10,7 +10,6 @@ from Model.llm_model import LLMFactory
 from chat_room import Room
 import uvicorn
 import uuid
-import os
 
 
 @asynccontextmanager
@@ -20,7 +19,7 @@ async def lifespan(app: FastAPI):
     database = DataBaseContainer()
     db_conn = database.db_conn()
     database.db_create()
-    rag = database.rag()
+    # rag = database.rag()
     room_dict = {}
     yield
     db_conn.closeall()
@@ -52,7 +51,7 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 
         while True:
             data = await websocket.receive_text()
-            await room.broadcast(data, llm, rag)
+            await room.broadcast(data, llm, rag=1)
 
     except WebSocketDisconnect:
         if room_id in room_dict:
@@ -72,8 +71,10 @@ async def add_documents(document: DocumentCreate):
         else:
             raise JSONResponse(content={"message": "Invalid request"}, status_code=400)
         
+        text = rag.deal_text(text)
+        
         await rag.store_text(name, text, file_type)
-        return JSONResponse(content={"message": "pdf 已成功新增到 RAG"}, status_code=200)
+        return JSONResponse(content={"message": "資料已成功新增到 RAG"}, status_code=200)
     except Exception as e:
         return JSONResponse(content={"message": f"新增檔案時發生問題: {str(e)}"}, status_code=500)
 

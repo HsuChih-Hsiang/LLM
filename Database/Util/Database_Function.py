@@ -122,7 +122,7 @@ class DataBaseCreate(DataBaseUtility):
         existing_tables = self.table_list()
         self.create_init_table(existing_tables)
             
-    @DataBaseUtility.db_get_data(return_type=ReturnType.List)
+    @DataBaseUtility.db_get_data(return_type=ReturnType.OneDimList)
     def table_list(self, cur: cursor) -> None:
         """_summary_
             用於取得目前資料庫所有的 table list
@@ -138,9 +138,15 @@ class DataBaseCreate(DataBaseUtility):
     
     @DataBaseUtility.db_commit
     def add_extension(self, cur: cursor) -> None:
+        """_summary_
+            幫 postgresql 安裝擴充
+        """
         cur.execute(DatabaseExtension.PGVECTOR.value)
         
     def create_init_table(self, table_list: List):
+        """_summary_
+            建立 table
+        """
         for table in DatabaseTable:
             if table.value not in table_list:
                 create_command = getattr(CreateTableCommand, table.name, None)

@@ -1,7 +1,7 @@
 import torch
 import PyPDF2
 from psycopg2.extensions import cursor
-from typing import List
+from typing import List, Dict
 from sentence_transformers import SentenceTransformer
 from Database.Util.Database_Function import DataBaseUtility, DataBaseConnection, ReturnType
 from Database.Rag.Rag_Database_Enum import DocumentsCommand, RagCommand
@@ -61,23 +61,23 @@ class RAG(DataBaseUtility):
         return chunk_data
         
     @DataBaseUtility.db_commit
-    def store_text(self, cur: cursor, file_name:str, text: List[str], file_type: int = 0) -> None:
-        cur.execute(DocumentsCommand.ADD_DOCUMENTS.value, (file_name, file_type))
+    def store_text(self, cur: cursor, file_name:str, text: List[Dict], file_type: int = 0) -> None:
+        cur.execute(DocumentsCommand.ADD_DOCUMENTS.value, {"file_name": file_name, "file_type": file_type})
         document_id = cur.fetchone()[0]
         for data in text:
             text, embedding, keywords = data["text"], data["embedding"], data["keywords"]
-            cur.execute(RagCommand.INSERT_DOCUMENT_CHUNK.value, (document_id, text))
+            cur.execute(RagCommand.INSERT_DOCUMENT_CHUNK.value, {"document_id": document_id, "chunk_text": text})
             chunk_id = cur.fetchone()[0]
-            cur.execute(RagCommand.INSERT_DOCUMENT_EMBEDDING.value, (chunk_id, embedding, keywords))
+            cur.execute(RagCommand.INSERT_DOCUMENT_EMBEDDING.value, {"chunk_id": chunk_id, "embedding": embedding, "keywords": keywords})
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.OneDimList)
-    def retrieve_text(self, cur: cursor, query: str, limit: int = 5) -> List:
+    def retrieve_text(self, cur: cursor, query: str, limit: int = 5, ratio: float = 0.5) -> List:
         """
             搜尋最相關的 pdf
         """
         query_embedding = self.encoding_text(query)
         query_keywords = self.extract_keywords(query)
-        cur.execute(RagCommand.SEARCH_VECTOR.value, (query_embedding, query_keywords, limit))
+        cur.execute(RagCommand.SEARCH_VECTOR.value, {"embedding": query_embedding, "keywords": query_keywords, "ratio": ratio, "limit": limit})
 
     async def generate_response(self, query: str, context: List[str]) -> str:
         """
