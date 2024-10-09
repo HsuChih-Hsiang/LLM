@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Form, Depends
 from contextlib import asynccontextmanager
 from API_Model.document_model import DocumentCreate
 from API_Model.api_enum import FileType
@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from Model.llm_model import LLMFactory
 from chat_room import Room
+import traceback
 import uvicorn
 import uuid
 
@@ -19,7 +20,7 @@ async def lifespan(app: FastAPI):
     database = DataBaseContainer()
     db_conn = database.db_conn()
     database.db_create()
-    # rag = database.rag()
+    rag = database.rag()
     room_dict = {}
     yield
     db_conn.closeall()
@@ -51,7 +52,8 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 
         while True:
             data = await websocket.receive_text()
-            await room.broadcast(data, llm, rag=1)
+            room_data = (data, llm, None) if True else (data, llm, rag)
+            await room.broadcast(*room_data)
 
     except WebSocketDisconnect:
         if room_id in room_dict:
@@ -61,21 +63,23 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
                 del room_dict[room_id]
  
 @app.post("/documents")               
-async def add_documents(document: DocumentCreate):
+async def add_documents(request: Request):
+    form_data = await request.form()
+    document = DocumentCreate(**form_data)
     try:
         if document.file:
             name, text = rag.pdf_dealer(document.file)
-            file_type = FileType.PDF.value()
+            file_type = FileType.PDF.value
         elif document.name and document.text:
-            name, text, file_type = document.name, document.text, FileType.TEXT.value()
+            name, text, file_type = document.name, document.text, FileType.TEXT.value
         else:
-            raise JSONResponse(content={"message": "Invalid request"}, status_code=400)
+            return JSONResponse(content={"message": "Invalid request"}, status_code=400)
         
-        text = rag.deal_text(text)
-        
-        await rag.store_text(name, text, file_type)
+        text = rag.deal_text(text)   
+        rag.store_text(name, text, file_type)
         return JSONResponse(content={"message": "資料已成功新增到 RAG"}, status_code=200)
     except Exception as e:
+        traceback.print_exc()
         return JSONResponse(content={"message": f"新增檔案時發生問題: {str(e)}"}, status_code=500)
 
 @app.put("/documents")               

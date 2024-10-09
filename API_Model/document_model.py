@@ -1,8 +1,7 @@
-from fastapi import UploadFile
+from fastapi import UploadFile, Form, File
 from pydantic import BaseModel
-from typing import Optional
 
 class DocumentCreate(BaseModel):
-    file: Optional[UploadFile] = None
-    name: Optional[str] = None
-    text: Optional[str] = None
+    file: UploadFile | None = File(None)
+    name: str | None = Form(None)
+    text: str | None = Form(None)
