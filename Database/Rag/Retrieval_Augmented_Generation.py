@@ -1,6 +1,8 @@
+import io
 import torch
 import PyPDF2
 from psycopg2.extensions import cursor
+from fastapi import UploadFile
 from typing import List, Dict
 from sentence_transformers import SentenceTransformer
 from Database.Util.Database_Function import DataBaseUtility, DataBaseConnection, ReturnType
@@ -15,7 +17,7 @@ class RAG(DataBaseUtility):
         self.max_seq_length = 4096
         self.embedding_dim = 768
         self.overlap = 50
-        self.tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+        self.tfidf_vectorizer = None
 
     def encoding_text(self, text: str) -> List[float]:
         if len(text.split()) <= self.max_seq_length:
@@ -26,6 +28,10 @@ class RAG(DataBaseUtility):
             return torch.mean(torch.stack(embeddings), dim=0).tolist()
         
     def extract_keywords(self, text: str, top_n: int = 5) -> List[str]:
+        if self.tfidf_vectorizer is None:
+            self.tfidf_vectorizer = TfidfVectorizer(stop_words='english')
+            self.tfidf_vectorizer.fit([text])
+            
         tfidf_matrix = self.tfidf_vectorizer.transform([text])
         feature_names = np.array(self.tfidf_vectorizer.get_feature_names_out())
         tfidf_scores = tfidf_matrix.toarray()[0]
@@ -40,11 +46,32 @@ class RAG(DataBaseUtility):
             chunks.append(chunk)
         return chunks
     
-    def pdf_dealer(self, doc: bytes|str):
-        with open(doc, 'rb') as pdf_file:
-            reader = PyPDF2.PdfReader(pdf_file)
-            text = "".join(page.extract_text() for page in reader.pages)
-        return pdf_file.name, text
+    def pdf_dealer(self, doc: UploadFile):
+        if not doc.filename.lower().endswith('.pdf'):
+            raise ValueError(f"File is not a PDF: {doc.filename}")
+        
+        try:
+            content = doc.file.read()
+            pdf_file = io.BytesIO(content)
+            
+            try:
+                reader = PyPDF2.PdfReader(pdf_file)
+                text = ""
+                for page in reader.pages:
+                    text += page.extract_text()    
+                if not text.strip():
+                    raise ValueError(f"PDF is empty or unreadable: {doc.filename}")   
+                return doc.filename, text
+            
+            except PyPDF2.errors.PdfReadError as e:
+                print(f"Error reading PDF: {str(e)}")
+                return None, None      
+        except Exception as e:
+            print(f"Error processing file: {str(e)}")
+            return None, None
+        
+        finally:
+            doc.file.seek(0)
         
     def deal_text(self, text: str) -> None:    
         chunks = self.split_text(text)

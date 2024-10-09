@@ -3,10 +3,12 @@ class Room:
         self.room = room_id
         self.connections = []
 
-    async def broadcast(self, response, llm, rag):
+    async def broadcast(self, *args):
+        response, llm, rag = args
         
         for connection in self.connections:
-            # response = rag.rag_pipeline(response)
+            if rag:
+                response = rag.rag_pipeline(response)      
             conversion, streamer = llm.generater_response(response)
 
         for new_text in streamer:
