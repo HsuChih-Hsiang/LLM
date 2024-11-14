@@ -14,7 +14,7 @@ class RAG(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection) -> None:
         super().__init__(db_connection)
         self.model = SentenceTransformer('allenai/longformer-base-4096')
-        self.max_seq_length = 4096
+        self.max_seq_length = 128
         self.embedding_dim = 768
         self.overlap = 50
         self.tfidf_vectorizer = None
@@ -24,8 +24,8 @@ class RAG(DataBaseUtility):
             return self.model.encode(text).tolist()
         else:
             chunks = self.split_text(text)
-            embeddings = [self.model.encode(chunk) for chunk in chunks]
-            return torch.mean(torch.stack(embeddings), dim=0).tolist()
+            embeddings = [self.model.encode(chunk).tolist() for chunk in chunks]
+            return embeddings
         
     def extract_keywords(self, text: str, top_n: int = 5) -> List[str]:
         if self.tfidf_vectorizer is None:
@@ -66,6 +66,7 @@ class RAG(DataBaseUtility):
             except PyPDF2.errors.PdfReadError as e:
                 print(f"Error reading PDF: {str(e)}")
                 return None, None      
+            
         except Exception as e:
             print(f"Error processing file: {str(e)}")
             return None, None
@@ -98,24 +99,23 @@ class RAG(DataBaseUtility):
             cur.execute(RagCommand.INSERT_DOCUMENT_EMBEDDING.value, {"chunk_id": chunk_id, "embedding": embedding, "keywords": keywords})
 
     @DataBaseUtility.db_get_data(return_type=ReturnType.OneDimList)
-    def retrieve_text(self, cur: cursor, query: str, limit: int = 5, ratio: float = 0.5) -> List:
+    def retrieve_text(self, cur: cursor, query: str, limit: int = 5, ratio: float = 0.1) -> List:
         """
             搜尋最相關的 pdf
         """
         query_embedding = self.encoding_text(query)
-        query_keywords = self.extract_keywords(query)
-        cur.execute(RagCommand.SEARCH_VECTOR.value, {"embedding": query_embedding, "keywords": query_keywords, "ratio": ratio, "limit": limit})
+        cur.execute(RagCommand.SEARCH_VECTOR.value, {"embedding": query_embedding, "ratio": ratio, "limit": limit})
 
-    async def generate_response(self, query: str, context: List[str]) -> str:
+    def generate_response(self, query: str, context: List[str]) -> str:
         """
             base on context generate response
         """
         combined_context = " ".join(context)
-        prompt = f"""基於以下上下文回答問題：\n\n上下文：{combined_context}\n\n問題：{query}\n\n回答："""
+        prompt = f"""基於上下文回答問題,問題：{query}\n\n上下文：{combined_context}\n\n"""
     
         return prompt
 
-    async def rag_pipeline(self, query: str) -> str:
+    def rag_pipeline(self, query: str) -> str:
         """
             完整的 RAG 流程
         """

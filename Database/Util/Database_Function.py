@@ -1,9 +1,10 @@
 from enum import Enum
 import psycopg2.extras
-from psycopg2.extensions import connection, cursor
+from psycopg2.extensions import connection, cursor, register_adapter, AsIs
 from psycopg2.pool import SimpleConnectionPool
 from typing import Dict, Type, List, Callable, Any, Union
 from Database.Util.Database_Enum import DatabaseTable, CreateTableCommand, DatabaseTableCommand, DatabaseExtension
+import numpy as np
 
 
 class ReturnType(Enum):
@@ -119,6 +120,7 @@ class DataBaseCreate(DataBaseUtility):
     def __init__(self, db_connection: DataBaseConnection):
         super().__init__(db_connection)
         self.add_extension()
+        register_adapter(np.ndarray, self.addapt_numpy_array)
         existing_tables = self.table_list()
         self.create_init_table(existing_tables)
             
@@ -152,4 +154,8 @@ class DataBaseCreate(DataBaseUtility):
                 create_command = getattr(CreateTableCommand, table.name, None)
                 if create_command:
                     self.create_table(create_command.value)
+                    
+    def addapt_numpy_array(numpy_array):
+        return AsIs(numpy_array.tolist())
+
     

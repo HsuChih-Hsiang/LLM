@@ -52,7 +52,7 @@ async def websocket_endpoint(websocket:WebSocket, room_id: str):
 
         while True:
             data = await websocket.receive_text()
-            room_data = (data, llm, None) if True else (data, llm, rag)
+            room_data = (data, llm, rag) if True else (data, llm, rag)
             await room.broadcast(*room_data)
 
     except WebSocketDisconnect:
@@ -74,7 +74,7 @@ async def add_documents(request: Request):
             name, text, file_type = document.name, document.text, FileType.TEXT.value
         else:
             return JSONResponse(content={"message": "Invalid request"}, status_code=400)
-        
+               
         text = rag.deal_text(text)   
         rag.store_text(name, text, file_type)
         return JSONResponse(content={"message": "資料已成功新增到 RAG"}, status_code=200)

@@ -14,3 +14,5 @@ python-multipart
 yaml
 optimum-quanto
 toml
+langchain
+faiss-cpu
